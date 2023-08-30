@@ -69,7 +69,7 @@ func (p *PubSubService) PublishCommandInTheRoom(roomID primitive.ObjectID, comma
 		return nil
 	}
 
-	VERIFIED := config.VERIFIED()
+	VERIFIED := config.PARTNER()
 	chatMessage := domain.ChatMessage{
 		NameUser:      "PinkkerBot",
 		Message:       commandContent,
@@ -130,7 +130,7 @@ func (p *PubSubService) GetCommandsFromCache(roomID primitive.ObjectID, commandN
 		return nil
 	}
 
-	VERIFIED := config.VERIFIED()
+	VERIFIED := config.PARTNER()
 	chatMessage := domain.ChatMessage{
 		NameUser:      "PinkkerBot",
 		Message:       commandContent,
@@ -237,7 +237,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		userInfo.Color = randomColor
 		userInfo.Verified = verified
 		if verified == true {
-			VERIFIED := config.VERIFIED()
+			VERIFIED := config.PARTNER()
 			defaultUserFields["EmblemasChat"] = map[string]string{
 				"Vip":       "",
 				"Moderator": "",
@@ -291,7 +291,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				},
 			}
 			if verified == true {
-				VERIFIED := config.VERIFIED()
+				VERIFIED := config.PARTNER()
 				defaultUserFields["EmblemasChat"] = map[string]string{
 					"Vip":       "",
 					"Moderator": "",
@@ -331,7 +331,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 						},
 					}
 					if verified == true {
-						VERIFIED := config.VERIFIED()
+						VERIFIED := config.PARTNER()
 						userInfo.EmblemasChat = map[string]string{
 							"Vip":       "",
 							"Moderator": "",
@@ -363,7 +363,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 					},
 				}
 				if verified == true {
-					VERIFIED := config.VERIFIED()
+					VERIFIED := config.PARTNER()
 					userInfo.EmblemasChat = map[string]string{
 						"Vip":       "",
 						"Moderator": "",

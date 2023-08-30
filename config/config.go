@@ -51,11 +51,11 @@ func MODERATOR() string {
 	return os.Getenv("MODERATOR")
 
 }
-func VERIFIED() string {
+func PARTNER() string {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("godotenv.Load error VERIFIED")
 	}
-	return os.Getenv("VERIFIED")
+	return os.Getenv("PARTNER")
 
 }
 func MONGODB_URI() string {
