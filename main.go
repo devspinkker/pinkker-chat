@@ -27,6 +27,9 @@ func main() {
 	routes.Routes(app, redisClient, newMongoDB)
 
 	PORT := config.PORT()
+	if PORT == "" {
+		PORT = "8080"
+	}
 	log.Fatal(app.Listen(PORT))
 }
 
