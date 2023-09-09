@@ -28,7 +28,7 @@ func main() {
 
 	PORT := config.PORT()
 	if PORT == "" {
-		PORT = "8080"
+		PORT = ":8080"
 	}
 	log.Fatal(app.Listen(PORT))
 }
