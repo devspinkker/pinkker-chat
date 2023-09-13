@@ -72,5 +72,6 @@ func setupMongoDB() *mongo.Client {
 	if err = client.Ping(context.Background(), nil); err != nil {
 		log.Fatal("MONGODB ERROR", err.Error())
 	}
+	fmt.Println("Mongo connect")
 	return client
 }
