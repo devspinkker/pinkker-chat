@@ -2,3 +2,4 @@
 go.sum
 .mod
 /tmp/
+/vendor/
