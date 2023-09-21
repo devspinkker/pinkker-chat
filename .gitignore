@@ -1,5 +1,4 @@
 .env
-go.sum
+.sum
 .mod
 /tmp/
-/vendor/
