@@ -296,6 +296,10 @@ func (s *ChatService) ModeratorActionTimeOut(action domain.ModeratorAction, veri
 
 	return nil
 }
+func (s *ChatService) GetUserInfoStruct(roomID primitive.ObjectID, nameUser string, verified bool) (domain.UserInfo, error) {
+	userInfo, errGetUserInfo := s.roomRepository.GetUserInfo(roomID, nameUser, verified)
+	return userInfo, errGetUserInfo
+}
 func (s *ChatService) GetUserInfo(roomID primitive.ObjectID, nameUser string, verified bool) (bool, error) {
 	userInfo, errGetUserInfo := s.roomRepository.GetUserInfo(roomID, nameUser, verified)
 	if errGetUserInfo != nil {
@@ -317,4 +321,9 @@ func (s *ChatService) UpdataCommands(roomID primitive.ObjectID, newCommands map[
 
 	UpdataCommandsErr := s.roomRepository.UpdataCommands(roomID, newCommands)
 	return UpdataCommandsErr
+}
+func (s *ChatService) UserConnectedStream(roomID, command string) error {
+
+	err := s.roomRepository.UserConnectedStream(roomID, command)
+	return err
 }

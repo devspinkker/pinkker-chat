@@ -39,7 +39,6 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	// chat messages
 	app.Post("/chatStreaming/:roomID", middleware.UseExtractor(), chatHandler.SendMessage)
 	app.Get("/ws/chatStreaming/:roomID/:nameuser?", websocket.New(func(c *websocket.Conn) {
-		defer c.Close()
 		roomID := c.Params("roomID")
 		nameuser := c.Params("nameuser")
 
@@ -48,23 +47,34 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			if errinObjectID != nil {
 				c.WriteMessage(websocket.TextMessage, []byte("Error con el id de la sala"))
 				c.Close()
+				return
 			}
 			infoUser, err := Repository.GetUserInfo(roomIdObj, nameuser, false)
 			if err != nil {
 				c.WriteMessage(websocket.TextMessage, []byte("Error con la info del usuario"))
 				c.Close()
+				return
+
 			}
 
 			if infoUser.Baneado == true {
 				c.WriteMessage(websocket.TextMessage, []byte("baneadoo"))
 				c.Close()
+				return
+
 			}
+		}
+		UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, "connect")
+		if UserConnectedStreamERR != nil {
+			c.Close()
+			return
 		}
 		LastRoomMessages, err := chatHandler.RedisCacheGetLastRoomMessages(roomID)
 		if err != nil {
 			if err != redis.Nil {
 				c.WriteMessage(websocket.TextMessage, []byte("Error al unirse a la sala"))
 				c.Close()
+				return
 			}
 		}
 		for i := len(LastRoomMessages) - 1; i >= 0; i-- {
@@ -76,13 +86,14 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 		}
 
 		for {
-			err := chatHandler.ReceiveMessageFromRoom(c)
-			if err != nil {
-				c.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c)
+			if errReceiveMessageFromRoom != nil {
+				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
 				c.Close()
 				return
 			}
 		}
+
 	}))
 
 }
