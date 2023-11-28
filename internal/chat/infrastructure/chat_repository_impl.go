@@ -515,3 +515,51 @@ func (r *PubSubService) UpdataCommands(roomID primitive.ObjectID, newCommands ma
 	_, UpdateOneerr := Collection.UpdateOne(context.Background(), filter, update)
 	return UpdateOneerr
 }
+func (r *PubSubService) UserConnectedStream(roomID, command string) error {
+	database := r.MongoClient.Database("PINKKER-BACKEND")
+	streamCollection := database.Collection("Streams")
+	categoriaCollection := database.Collection("Categorias")
+
+	streamUpdate := bson.M{"$inc": bson.M{"ViewerCount": 1}}
+
+	if command == "disconnect" {
+		streamUpdate = bson.M{"$inc": bson.M{"ViewerCount": -1}}
+	}
+
+	roomIDObj, err := primitive.ObjectIDFromHex(roomID)
+	if err != nil {
+		return err
+	}
+
+	streamFilter := bson.M{"_id": roomIDObj}
+
+	var updatedStream domain.Stream
+	err = streamCollection.FindOneAndUpdate(context.Background(), streamFilter, streamUpdate).Decode(&updatedStream)
+	if err != nil {
+		return err
+	}
+
+	categoria := updatedStream.StreamCategory
+
+	categoriaUpdate := bson.M{"$inc": bson.M{"Spectators": 1}}
+
+	if command == "disconnect" {
+		categoriaUpdate = bson.M{"$inc": bson.M{"Spectators": -1}}
+	}
+
+	categoriaFilter := bson.M{"Name": categoria}
+
+	result, err := categoriaCollection.UpdateOne(context.Background(), categoriaFilter, categoriaUpdate)
+
+	if result.MatchedCount == 0 {
+		nuevaCategoria := bson.M{
+			"Name":       categoria,
+			"Img":        "",
+			"Spectators": 1,
+			"Tags":       []string{},
+		}
+		_, err = categoriaCollection.InsertOne(context.Background(), nuevaCategoria)
+	}
+
+	return err
+}

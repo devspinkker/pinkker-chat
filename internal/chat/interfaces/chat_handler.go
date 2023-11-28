@@ -23,7 +23,6 @@ func NewChatHandler(chatService *application.ChatService) *ChatHandler {
 func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 	NameUser := c.Context().UserValue("nameUser").(string)
 	verified := c.Context().UserValue("verified").(bool)
-
 	roomID := c.Params("roomID")
 	var req domain.MessagesTheSendMessagesRoom
 	if err := c.BodyParser(&req); err != nil {
@@ -54,28 +53,39 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 	})
 
 }
+func (h *ChatHandler) UserConnectedStream(roomID, commando string) error {
+
+	err := h.chatService.UserConnectedStream(roomID, commando)
+
+	return err
+}
 func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
-	defer c.Close()
+
 	roomID := c.Params("roomID")
 	sub := h.chatService.SubscribeToRoom(roomID)
 	defer h.chatService.CloseSubscription(sub)
-
-	for {
-		_, _, err := c.ReadMessage()
-		if err != nil {
-			return err
+	go func() {
+		for {
+			_, _, err := c.ReadMessage()
+			if err != nil {
+				_ = h.chatService.UserConnectedStream(roomID, "disconnect")
+				return
+			}
 		}
+	}()
+	for {
 		message, err := sub.ReceiveMessage(context.Background())
 		if err != nil {
 			return err
 		}
+
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
 			return err
 		}
 	}
-
 }
+
 func (h *ChatHandler) RedisCacheGetLastRoomMessages(roomID string) ([]string, error) {
 
 	message, err := h.chatService.RedisCacheGetLastRoomMessages(roomID)
