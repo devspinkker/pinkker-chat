@@ -14,7 +14,7 @@ type UserInfo struct {
 	Verified      bool
 	Moderator     bool
 	Subscription  string
-	SubscribedAgo string
+	SubscribedAgo time.Time
 	Baneado       bool
 	TimeOut       time.Time
 	EmblemasChat  map[string]string
@@ -25,13 +25,14 @@ type InfoUser struct {
 	Color    string                   `json:"Color" bson:"Color"`
 	Rooms    []map[string]interface{} `json:"rooms" bson:"Rooms"`
 }
+
 type ChatMessage struct {
 	NameUser      string            `json:"nameUser"`
 	Color         string            `json:"Color" bson:"Color"`
 	Message       string            `json:"message"`
 	Vip           bool              `json:"vip"`
 	Subscription  string            `json:"subscription"`
-	SubscribedAgo string            `json:"subscribedAgo"`
+	SubscribedAgo time.Time         `json:"subscribedAgo"`
 	TimeOut       time.Time         `json:"timeOut"`
 	Baneado       bool              `json:"baneado"`
 	Moderator     bool              `json:"moderator"`

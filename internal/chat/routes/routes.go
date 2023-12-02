@@ -41,7 +41,6 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	app.Get("/ws/chatStreaming/:roomID/:nameuser?", websocket.New(func(c *websocket.Conn) {
 		roomID := c.Params("roomID")
 		nameuser := c.Params("nameuser")
-
 		if len(nameuser) >= 3 {
 			roomIdObj, errinObjectID := primitive.ObjectIDFromHex(roomID)
 			if errinObjectID != nil {

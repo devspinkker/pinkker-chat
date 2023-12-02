@@ -73,11 +73,11 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 	if err != nil {
 		return err
 	}
-	saveMessageChan := make(chan error)
+	// saveMessageChan := make(chan error)
 	RedisCacheSetLastRoomMessagesAndPublishMessageChan := make(chan error)
 
 	go s.roomRepository.RedisCacheSetLastRoomMessagesAndPublishMessage(roomID, string(chatMessageJSON), RedisCacheSetLastRoomMessagesAndPublishMessageChan)
-	go s.roomRepository.SaveMessageTheUserInRoom(nameUser, roomID, string(chatMessageJSON), saveMessageChan)
+	// go s.roomRepository.SaveMessageTheUserInRoom(nameUser, roomID, string(chatMessageJSON), saveMessageChan)
 	go func() {
 		if message[0] == '!' {
 
