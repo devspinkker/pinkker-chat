@@ -24,6 +24,7 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 	NameUser := c.Context().UserValue("nameUser").(string)
 	verified := c.Context().UserValue("verified").(bool)
 	roomID := c.Params("roomID")
+
 	var req domain.MessagesTheSendMessagesRoom
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
