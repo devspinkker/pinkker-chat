@@ -5,6 +5,7 @@ import (
 	"PINKKER-CHAT/internal/chat/infrastructure"
 	"PINKKER-CHAT/internal/chat/interfaces"
 	"PINKKER-CHAT/pkg/middleware"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -39,47 +40,47 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	// chat messages
 	app.Post("/chatStreaming/:roomID", middleware.UseExtractor(), chatHandler.SendMessage)
 	app.Get("/ws/chatStreaming/:roomID/:nameuser?", websocket.New(func(c *websocket.Conn) {
+		// necesito sacar el nameUser en base a un token usando useextractor
+		defer c.Close()
 		roomID := c.Params("roomID")
 		nameuser := c.Params("nameuser")
 		if len(nameuser) >= 3 {
 			roomIdObj, errinObjectID := primitive.ObjectIDFromHex(roomID)
 			if errinObjectID != nil {
 				c.WriteMessage(websocket.TextMessage, []byte("Error con el id de la sala"))
-				c.Close()
 				return
 			}
 			infoUser, err := Repository.GetUserInfo(roomIdObj, nameuser, false)
 			if err != nil {
 				c.WriteMessage(websocket.TextMessage, []byte("Error con la info del usuario"))
-				c.Close()
 				return
 
 			}
 
 			if infoUser.Baneado == true {
 				c.WriteMessage(websocket.TextMessage, []byte("baneadoo"))
-				c.Close()
 				return
 
 			}
 		}
 		UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, "connect")
 		if UserConnectedStreamERR != nil {
-			c.Close()
+			fmt.Println(UserConnectedStreamERR)
+
 			return
 		}
+
 		LastRoomMessages, err := chatHandler.RedisCacheGetLastRoomMessages(roomID)
+
 		if err != nil {
 			if err != redis.Nil {
 				c.WriteMessage(websocket.TextMessage, []byte("Error al unirse a la sala"))
-				c.Close()
 				return
 			}
 		}
 		for i := len(LastRoomMessages) - 1; i >= 0; i-- {
 			err = c.WriteMessage(websocket.TextMessage, []byte(LastRoomMessages[i]))
 			if err != nil {
-				c.Close()
 				return
 			}
 		}
@@ -88,7 +89,6 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c)
 			if errReceiveMessageFromRoom != nil {
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
-				c.Close()
 				return
 			}
 		}
