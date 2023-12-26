@@ -6,6 +6,7 @@ import (
 	"PINKKER-CHAT/internal/chat/interfaces"
 	"PINKKER-CHAT/pkg/middleware"
 	"fmt"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -39,9 +40,13 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 	// chat messages
 	app.Post("/chatStreaming/:roomID", middleware.UseExtractor(), chatHandler.SendMessage)
+	var connectedUsers = make(map[string]bool)
+	var mu sync.Mutex
 	app.Get("/ws/chatStreaming/:roomID/:nameuser?", websocket.New(func(c *websocket.Conn) {
-		// necesito sacar el nameUser en base a un token usando useextractor
+		mu.Lock()
+		defer mu.Unlock()
 		defer c.Close()
+
 		roomID := c.Params("roomID")
 		nameuser := c.Params("nameuser")
 		if len(nameuser) >= 3 {
@@ -63,11 +68,13 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 			}
 		}
-		UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, "connect")
-		if UserConnectedStreamERR != nil {
-			fmt.Println(UserConnectedStreamERR)
-
-			return
+		if !connectedUsers[nameuser] {
+			connectedUsers[nameuser] = true
+			UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, "connect")
+			if UserConnectedStreamERR != nil {
+				fmt.Println(UserConnectedStreamERR)
+				return
+			}
 		}
 
 		LastRoomMessages, err := chatHandler.RedisCacheGetLastRoomMessages(roomID)
@@ -86,7 +93,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 		}
 
 		for {
-			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c)
+			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, connectedUsers)
 			if errReceiveMessageFromRoom != nil {
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
 				return
