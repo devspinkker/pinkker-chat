@@ -72,6 +72,7 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, connectedUsers m
 			_, _, err := c.ReadMessage()
 			if err != nil {
 				if connectedUsers[nameuser] {
+					connectedUsers[nameuser] = false
 					_ = h.chatService.UserConnectedStream(roomID, "disconnect")
 					return
 				}

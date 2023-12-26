@@ -6,7 +6,6 @@ import (
 	"PINKKER-CHAT/internal/chat/interfaces"
 	"PINKKER-CHAT/pkg/middleware"
 	"fmt"
-	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -41,12 +40,9 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	// chat messages
 	app.Post("/chatStreaming/:roomID", middleware.UseExtractor(), chatHandler.SendMessage)
 	var connectedUsers = make(map[string]bool)
-	var mu sync.Mutex
 	app.Get("/ws/chatStreaming/:roomID/:nameuser?", websocket.New(func(c *websocket.Conn) {
-		mu.Lock()
-		defer mu.Unlock()
+		fmt.Println("ASA")
 		defer c.Close()
-
 		roomID := c.Params("roomID")
 		nameuser := c.Params("nameuser")
 		if len(nameuser) >= 3 {
