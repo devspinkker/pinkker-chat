@@ -60,16 +60,21 @@ func (h *ChatHandler) UserConnectedStream(roomID, commando string) error {
 
 	return err
 }
-func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
+func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, connectedUsers map[string]bool) error {
 
 	roomID := c.Params("roomID")
+	nameuser := c.Params("nameuser")
+
 	sub := h.chatService.SubscribeToRoom(roomID)
 	defer h.chatService.CloseSubscription(sub)
 	go func() {
 		for {
 			_, _, err := c.ReadMessage()
 			if err != nil {
-				_ = h.chatService.UserConnectedStream(roomID, "disconnect")
+				if connectedUsers[nameuser] {
+					_ = h.chatService.UserConnectedStream(roomID, "disconnect")
+					return
+				}
 				return
 			}
 		}
