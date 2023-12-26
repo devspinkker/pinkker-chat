@@ -4,6 +4,7 @@ import (
 	"PINKKER-CHAT/internal/chat/application"
 	"PINKKER-CHAT/internal/chat/infrastructure"
 	"PINKKER-CHAT/internal/chat/interfaces"
+	"PINKKER-CHAT/pkg/jwt"
 	"PINKKER-CHAT/pkg/middleware"
 	"fmt"
 
@@ -40,11 +41,19 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	// chat messages
 	app.Post("/chatStreaming/:roomID", middleware.UseExtractor(), chatHandler.SendMessage)
 	var connectedUsers = make(map[string]bool)
-	app.Get("/ws/chatStreaming/:roomID/:nameuser?", websocket.New(func(c *websocket.Conn) {
-		fmt.Println("ASA")
+	app.Get("/ws/chatStreaming/:roomID/:token", websocket.New(func(c *websocket.Conn) {
 		defer c.Close()
 		roomID := c.Params("roomID")
-		nameuser := c.Params("nameuser")
+		token := c.Params("token")
+		var nameuser string
+		if token == "" {
+			fmt.Println(token)
+			nameuserExtractDataFromToken, _, _, err := jwt.ExtractDataFromToken(token)
+			if err != nil {
+				return
+			}
+			nameuser = nameuserExtractDataFromToken
+		}
 		if len(nameuser) >= 3 {
 			roomIdObj, errinObjectID := primitive.ObjectIDFromHex(roomID)
 			if errinObjectID != nil {
