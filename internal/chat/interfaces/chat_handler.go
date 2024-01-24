@@ -59,6 +59,12 @@ func (h *ChatHandler) UserConnectedStream(roomID, commando string) error {
 
 	return err
 }
+func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser string, verified bool) (domain.UserInfo, error) {
+
+	UserInfo, err := h.chatService.InfoUserRoomChache(roomID, nameUser, verified)
+
+	return UserInfo, err
+}
 func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, connectedUsers map[string]bool) error {
 
 	roomID := c.Params("roomID")

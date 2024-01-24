@@ -8,35 +8,46 @@ import (
 )
 
 type UserInfo struct {
-	Room          primitive.ObjectID
-	Color         string
-	Vip           bool
-	Verified      bool
-	Moderator     bool
-	Subscription  string
-	SubscribedAgo time.Time
-	Baneado       bool
-	TimeOut       time.Time
-	EmblemasChat  map[string]string
+	Room             primitive.ObjectID
+	Color            string
+	Vip              bool
+	Verified         bool
+	Moderator        bool
+	Subscription     primitive.ObjectID
+	SubscriptionInfo SubscriptionInfo
+	Baneado          bool
+	TimeOut          time.Time
+	EmblemasChat     map[string]string
+}
+type SubscriptionInfo struct {
+	ID                   primitive.ObjectID `bson:"_id,omitempty"`
+	SubscriptionNameUser string             `bson:"SubscriptionNameUser"`
+	SourceUserID         primitive.ObjectID `bson:"sourceUserID"`
+	DestinationUserID    primitive.ObjectID `bson:"destinationUserID"`
+	SubscriptionStart    time.Time          `bson:"SubscriptionStart"`
+	SubscriptionEnd      time.Time          `bson:"SubscriptionEnd"`
+	MonthsSubscribed     int                `bson:"MonthsSubscribed"`
+	Notified             bool               `bson:"Notified"`
+	Text                 string             `bson:"Text"`
 }
 type InfoUser struct {
-	ID       primitive.ObjectID       `json:"id" bson:"_id,omitempty"`
-	NameUser string                   `json:"nameuser" bson:"NameUser"`
-	Color    string                   `json:"Color" bson:"Color"`
-	Rooms    []map[string]interface{} `json:"rooms" bson:"Rooms"`
+	ID       primitive.ObjectID       `bson:"_id,omitempty"`
+	Nameuser string                   `bson:"NameUser"`
+	Color    string                   `bson:"Color"`
+	Rooms    []map[string]interface{} `bson:"Rooms"`
 }
 
 type ChatMessage struct {
-	NameUser      string            `json:"nameUser"`
-	Color         string            `json:"Color" bson:"Color"`
-	Message       string            `json:"message"`
-	Vip           bool              `json:"vip"`
-	Subscription  string            `json:"subscription"`
-	SubscribedAgo time.Time         `json:"subscribedAgo"`
-	TimeOut       time.Time         `json:"timeOut"`
-	Baneado       bool              `json:"baneado"`
-	Moderator     bool              `json:"moderator"`
-	EmblemasChat  map[string]string `json:"EmotesChat"`
+	NameUser         string             `json:"nameUser"`
+	Color            string             `json:"Color" bson:"Color"`
+	Message          string             `json:"message"`
+	Vip              bool               `json:"vip"`
+	Subscription     primitive.ObjectID `json:"subscription"`
+	SubscriptionInfo SubscriptionInfo
+	TimeOut          time.Time         `json:"timeOut"`
+	Baneado          bool              `json:"baneado"`
+	Moderator        bool              `json:"moderator"`
+	EmblemasChat     map[string]string `json:"EmotesChat"`
 }
 type Datacommands struct {
 	ID       primitive.ObjectID `json:"id" bson:"_id,omitempty"`

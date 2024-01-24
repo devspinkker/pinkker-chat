@@ -57,16 +57,16 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 	}
 
 	chatMessage := domain.ChatMessage{
-		NameUser:      nameUser,
-		Color:         userInfo.Color,
-		Message:       message,
-		Vip:           userInfo.Vip,
-		Subscription:  userInfo.Subscription,
-		SubscribedAgo: userInfo.SubscribedAgo,
-		Baneado:       userInfo.Baneado,
-		TimeOut:       userInfo.TimeOut,
-		Moderator:     userInfo.Moderator,
-		EmblemasChat:  userInfo.EmblemasChat,
+		NameUser:         nameUser,
+		Color:            userInfo.Color,
+		Message:          message,
+		Vip:              userInfo.Vip,
+		Subscription:     userInfo.Subscription,
+		SubscriptionInfo: userInfo.SubscriptionInfo,
+		Baneado:          userInfo.Baneado,
+		TimeOut:          userInfo.TimeOut,
+		Moderator:        userInfo.Moderator,
+		EmblemasChat:     userInfo.EmblemasChat,
 	}
 
 	chatMessageJSON, err := json.Marshal(chatMessage)
@@ -97,6 +97,10 @@ func (s *ChatService) RedisCacheGetLastRoomMessages(roomID string) ([]string, er
 		return nil, err
 	}
 	return message, nil
+}
+func (s *ChatService) InfoUserRoomChache(roomID primitive.ObjectID, nameUser string, verified bool) (domain.UserInfo, error) {
+	UserInfo, err := s.roomRepository.GetUserInfo(roomID, nameUser, verified)
+	return UserInfo, err
 }
 
 // action
