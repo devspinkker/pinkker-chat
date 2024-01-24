@@ -5,7 +5,7 @@ import (
 	"PINKKER-CHAT/internal/chat/domain"
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"math/rand"
 	"time"
 
@@ -72,15 +72,14 @@ func (p *PubSubService) PublishCommandInTheRoom(roomID primitive.ObjectID, comma
 
 	VERIFIED := config.PARTNER()
 	chatMessage := domain.ChatMessage{
-		NameUser:      "PinkkerBot",
-		Message:       commandContent,
-		Color:         "blue",
-		Vip:           true,
-		Subscription:  "",
-		SubscribedAgo: time.Time{},
-		Baneado:       false,
-		TimeOut:       time.Now(),
-		Moderator:     false,
+		NameUser:     "PinkkerBot",
+		Message:      commandContent,
+		Color:        "blue",
+		Vip:          true,
+		Subscription: primitive.ObjectID{},
+		Baneado:      false,
+		TimeOut:      time.Now(),
+		Moderator:    false,
 		EmblemasChat: map[string]string{
 			"Vip":       "",
 			"Moderator": "",
@@ -133,15 +132,14 @@ func (p *PubSubService) GetCommandsFromCache(roomID primitive.ObjectID, commandN
 
 	VERIFIED := config.PARTNER()
 	chatMessage := domain.ChatMessage{
-		NameUser:      "PinkkerBot",
-		Message:       commandContent,
-		Color:         "blue",
-		Vip:           true,
-		Subscription:  "",
-		SubscribedAgo: time.Time{},
-		Baneado:       false,
-		TimeOut:       time.Now(),
-		Moderator:     false,
+		NameUser:     "PinkkerBot",
+		Message:      commandContent,
+		Color:        "blue",
+		Vip:          true,
+		Subscription: primitive.ObjectID{},
+		Baneado:      false,
+		TimeOut:      time.Now(),
+		Moderator:    false,
 		EmblemasChat: map[string]string{
 			"Vip":       "",
 			"Moderator": "",
@@ -205,15 +203,15 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 	randomColor := colors[randomIndex]
 
 	defaultUserFields := map[string]interface{}{
-		"Room":          roomID,
-		"Color":         randomColor,
-		"Vip":           false,
-		"Verified":      verified,
-		"Moderator":     false,
-		"Subscription":  "inactive",
-		"SubscribedAgo": time.Now(),
-		"Baneado":       false,
-		"TimeOut":       time.Now(),
+		"Room":             roomID,
+		"Color":            randomColor,
+		"Vip":              false,
+		"Verified":         verified,
+		"Moderator":        false,
+		"Subscription":     primitive.ObjectID{},
+		"SubscriptionInfo": domain.SubscriptionInfo{},
+		"Baneado":          false,
+		"TimeOut":          time.Now(),
 		"EmblemasChat": map[string]string{
 			"Vip":       "",
 			"Moderator": "",
@@ -230,18 +228,60 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			return userInfo, errUnmarshal
 		}
 		userInfo.Vip, _ = storedUserFields["Vip"].(bool)
-		userInfo.Subscription = storedUserFields["Subscription"].(string)
-		subscribedAgoStr, ok := storedUserFields["SubscribedAgo"].(string)
-		if ok {
-			subscribedAgo, err := time.Parse(time.RFC3339, subscribedAgoStr)
-			if err != nil {
-				return userInfo, err
-			}
-			userInfo.SubscribedAgo = subscribedAgo
+		subscriptionValue, ok := storedUserFields["Subscription"].(string)
+
+		subscriptionID, err := primitive.ObjectIDFromHex(subscriptionValue)
+		if err == nil {
+			userInfo.Subscription = subscriptionID
 		} else {
-			return userInfo, errors.New("El campo SubscribedAgo no es de tipo string")
+			subscriptionID = primitive.NilObjectID
 		}
 
+		subscriptionInfoInterface, ok := storedUserFields["SubscriptionInfo"]
+		if ok {
+			// Verificar que sea un mapa antes de intentar convertirlo
+			if subscriptionInfoMap, ok := subscriptionInfoInterface.(map[string]interface{}); ok {
+				subscriptionInfo := domain.SubscriptionInfo{
+					ID:                   primitive.NilObjectID,
+					SubscriptionNameUser: subscriptionInfoMap["SubscriptionNameUser"].(string),
+					SourceUserID:         primitive.NilObjectID,
+					DestinationUserID:    primitive.NilObjectID,
+				}
+
+				// Verificar la existencia y tipo de los campos antes de convertirlos
+				if startStr, ok := subscriptionInfoMap["SubscriptionStart"].(string); ok {
+					startTime, err := time.Parse(time.RFC3339, startStr)
+					if err == nil {
+						subscriptionInfo.SubscriptionStart = startTime
+					}
+				}
+
+				if endStr, ok := subscriptionInfoMap["SubscriptionEnd"].(string); ok {
+					endTime, err := time.Parse(time.RFC3339, endStr)
+					if err == nil {
+						subscriptionInfo.SubscriptionEnd = endTime
+					}
+				}
+
+				if months, ok := subscriptionInfoMap["MonthsSubscribed"].(float64); ok {
+					subscriptionInfo.MonthsSubscribed = int(months)
+				}
+
+				if notified, ok := subscriptionInfoMap["Notified"].(bool); ok {
+					subscriptionInfo.Notified = notified
+				}
+
+				if text, ok := subscriptionInfoMap["Text"].(string); ok {
+					subscriptionInfo.Text = text
+				}
+
+				userInfo.SubscriptionInfo = subscriptionInfo
+			} else {
+				userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
+			}
+		} else {
+			userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
+		}
 		userInfo.Moderator = storedUserFields["Moderator"].(bool)
 		userInfo.Baneado = storedUserFields["Baneado"].(bool)
 		userInfo.Color = storedUserFields["Color"].(string)
@@ -275,38 +315,123 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 
 		Collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("UserInformationInAllRooms")
 		filter := bson.M{"NameUser": nameUser}
+		fmt.Println("****")
+		fmt.Println(nameUser)
+		fmt.Println("****")
 		err = Collection.FindOne(context.Background(), filter).Decode(&infoUser)
 
 		if err == mongo.ErrNoDocuments {
 			// deberia creaar la info del chat en cuanto se subscribe
 			userInfoCollection := domain.InfoUser{
-				NameUser: nameUser,
+				Nameuser: nameUser,
 				Color:    randomColor,
 				Rooms:    []map[string]interface{}{defaultUserFields},
 			}
+			_, err = Collection.InsertOne(context.Background(), userInfoCollection)
+			if err != nil {
+				return domain.UserInfo{}, err
+			}
+		} else if err != nil {
+			return userInfo, err
+		}
+		roomExists := false
+		for _, room := range infoUser.Rooms {
+			if room["Room"] == roomID {
+				roomExists = true
+				valor, _ := room["EmblemasChat"].(map[string]string)
+
+				userInfo = domain.UserInfo{
+					Room:      roomID,
+					Color:     randomColor,
+					Vip:       room["Vip"].(bool),
+					Moderator: room["Moderator"].(bool),
+					Verified:  room["Verified"].(bool),
+					Baneado:   room["Baneado"].(bool),
+				}
+				subscriptionID, ok := room["Subscription"].(primitive.ObjectID)
+				if !ok {
+					subscriptionID = primitive.NilObjectID
+				}
+				userInfo.Subscription = subscriptionID
+				userInfo.Subscription = subscriptionID
+				if TimeOutInterface, ok := room["TimeOut"]; ok {
+					if TimeOutdAgo, ok := TimeOutInterface.(time.Time); ok {
+						userInfo.TimeOut = TimeOutdAgo
+					} else {
+						userInfo.TimeOut = time.Now()
+					}
+				} else {
+					userInfo.TimeOut = time.Now()
+				}
+				if verified == true {
+					VERIFIED := config.PARTNER()
+					userInfo.EmblemasChat = map[string]string{
+						"Vip":       valor["Vip"],
+						"Moderator": valor["Moderator"],
+						"Verified":  VERIFIED,
+					}
+				} else {
+					userInfo.EmblemasChat = map[string]string{
+						"Vip":       valor["Vip"],
+						"Moderator": valor["Moderator"],
+						"Verified":  valor["Verified"],
+					}
+				}
+
+				// Buscar el documento de suscripción usando el ID de Subscription
+				subscription, err := r.getSubscriptionByID(subscriptionID)
+
+				if err == nil {
+					// Se encontró el documento de suscripción
+					subscriptionInfo := domain.SubscriptionInfo{
+						ID:                   subscription.ID,
+						SubscriptionNameUser: subscription.SubscriptionNameUser,
+						SourceUserID:         subscription.SourceUserID,
+						DestinationUserID:    subscription.DestinationUserID,
+						SubscriptionStart:    subscription.SubscriptionStart,
+						SubscriptionEnd:      subscription.SubscriptionEnd,
+						MonthsSubscribed:     subscription.MonthsSubscribed,
+						Notified:             subscription.Notified,
+						Text:                 subscription.Text,
+					}
+
+					userInfo.SubscriptionInfo = subscriptionInfo
+				} else if err == mongo.ErrNoDocuments {
+					userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
+				} else {
+					fmt.Println("error en la busqueda de la Suscripción")
+					fmt.Println(err.Error())
+					userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
+				}
+
+				err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
+				if err != nil {
+					return domain.UserInfo{}, err
+				}
+
+				return userInfo, err
+			}
+
+		}
+		if !roomExists {
 			userInfo = domain.UserInfo{
-				Room:          roomID,
-				Color:         randomColor,
-				Vip:           false,
-				Verified:      verified,
-				Moderator:     false,
-				Subscription:  "",
-				SubscribedAgo: time.Time{},
-				Baneado:       false,
-				TimeOut:       time.Now(),
+				Room:         roomID,
+				Vip:          false,
+				Color:        randomColor,
+				Moderator:    false,
+				Verified:     verified,
+				Subscription: primitive.ObjectID{},
+				Baneado:      false,
+				TimeOut:      time.Now(),
 				EmblemasChat: map[string]string{
 					"Vip":       "",
 					"Moderator": "",
 					"Verified":  "",
 				},
+				SubscriptionInfo: domain.SubscriptionInfo{},
 			}
 			if verified == true {
 				VERIFIED := config.PARTNER()
-				defaultUserFields["EmblemasChat"] = map[string]string{
-					"Vip":       "",
-					"Moderator": "",
-					"Verified":  VERIFIED,
-				}
 				userInfo.EmblemasChat = map[string]string{
 					"Vip":       "",
 					"Moderator": "",
@@ -314,110 +439,22 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				}
 			}
 
-			_, err = Collection.InsertOne(context.Background(), userInfoCollection)
+			newRoom := map[string]interface{}{
+				"Room":         roomID,
+				"Vip":          false,
+				"Color":        randomColor,
+				"Moderator":    false,
+				"Verified":     verified,
+				"Subscription": primitive.ObjectID{},
+				"Baneado":      false,
+				"TimeOut":      time.Now(),
+				"EmblemasChat": userInfo.EmblemasChat,
+			}
+
+			infoUser.Rooms = append(infoUser.Rooms, newRoom)
+			_, err := Collection.UpdateOne(context.Background(), filter, bson.M{"$set": infoUser})
 			if err != nil {
 				return domain.UserInfo{}, err
-			}
-		} else if err != nil {
-			return userInfo, err
-		} else {
-			roomExists := false
-			for _, room := range infoUser.Rooms {
-				if room["Room"] == roomID {
-					roomExists = true
-					valor, _ := room["EmblemasChat"].(map[string]string)
-
-					userInfo = domain.UserInfo{
-						Room:         roomID,
-						Color:        randomColor,
-						Vip:          room["Vip"].(bool),
-						Moderator:    room["Moderator"].(bool),
-						Verified:     room["Verified"].(bool),
-						Subscription: room["Subscription"].(string),
-						Baneado:      room["Baneado"].(bool),
-					}
-					if subscribedAgoInterface, ok := room["SubscribedAgo"]; ok {
-						if subscribedAgo, ok := subscribedAgoInterface.(time.Time); ok {
-							userInfo.SubscribedAgo = subscribedAgo
-						} else {
-							userInfo.SubscribedAgo = time.Now()
-						}
-					} else {
-						userInfo.SubscribedAgo = time.Now()
-					}
-					if TimeOutInterface, ok := room["TimeOut"]; ok {
-						if TimeOutdAgo, ok := TimeOutInterface.(time.Time); ok {
-							userInfo.TimeOut = TimeOutdAgo
-						} else {
-							userInfo.TimeOut = time.Now()
-						}
-					} else {
-						userInfo.TimeOut = time.Now()
-					}
-					if verified == true {
-						VERIFIED := config.PARTNER()
-						userInfo.EmblemasChat = map[string]string{
-							"Vip":       valor["Vip"],
-							"Moderator": valor["Moderator"],
-							"Verified":  VERIFIED,
-						}
-					} else {
-						userInfo.EmblemasChat = map[string]string{
-							"Vip":       valor["Vip"],
-							"Moderator": valor["Moderator"],
-							"Verified":  valor["Verified"],
-						}
-					}
-					err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
-					if err != nil {
-						return domain.UserInfo{}, err
-					}
-					return userInfo, err
-				}
-			}
-			if !roomExists {
-				userInfo = domain.UserInfo{
-					Room:          roomID,
-					Vip:           false,
-					Color:         randomColor,
-					Moderator:     false,
-					Verified:      verified,
-					Subscription:  "inactive",
-					SubscribedAgo: time.Time{},
-					Baneado:       false,
-					TimeOut:       time.Now(),
-					EmblemasChat: map[string]string{
-						"Vip":       "",
-						"Moderator": "",
-						"Verified":  "",
-					},
-				}
-				if verified == true {
-					VERIFIED := config.PARTNER()
-					userInfo.EmblemasChat = map[string]string{
-						"Vip":       "",
-						"Moderator": "",
-						"Verified":  VERIFIED,
-					}
-				}
-				newRoom := map[string]interface{}{
-					"Room":          roomID,
-					"Vip":           false,
-					"Color":         randomColor,
-					"Moderator":     false,
-					"Verified":      verified,
-					"Subscription":  "inactive",
-					"SubscribedAgo": time.Time{},
-					"Baneado":       false,
-					"TimeOut":       time.Now(),
-					"EmblemasChat":  userInfo.EmblemasChat,
-				}
-
-				infoUser.Rooms = append(infoUser.Rooms, newRoom)
-				_, err := Collection.UpdateOne(context.Background(), filter, bson.M{"$set": infoUser})
-				if err != nil {
-					return domain.UserInfo{}, err
-				}
 			}
 		}
 
@@ -427,6 +464,15 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		}
 	}
 	return userInfo, nil
+}
+func (r *PubSubService) getSubscriptionByID(subscriptionID primitive.ObjectID) (domain.SubscriptionInfo, error) {
+	collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("Subscriptions")
+
+	var subscription domain.SubscriptionInfo
+	filter := bson.M{"_id": subscriptionID}
+	err := collection.FindOne(context.Background(), filter).Decode(&subscription)
+
+	return subscription, err
 }
 
 func (r *PubSubService) RedisCacheSetUserInfo(userHashKey string, userInfo domain.UserInfo) error {
@@ -454,14 +500,13 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 	filter := bson.M{"NameUser": nameUser, "Rooms.Room": roomID}
 	updateFields := bson.M{
 		"$set": bson.M{
-			"Rooms.$.Room":          userInfo.Room,
-			"Rooms.$.Vip":           userInfo.Vip,
-			"Rooms.$.Moderator":     userInfo.Moderator,
-			"Rooms.$.Subscription":  userInfo.Subscription,
-			"Rooms.$.SubscribedAgo": userInfo.SubscribedAgo,
-			"Rooms.$.Baneado":       userInfo.Baneado,
-			"Rooms.$.TimeOut":       userInfo.TimeOut,
-			"Rooms.$.EmblemasChat":  userInfo.EmblemasChat,
+			"Rooms.$.Room":         userInfo.Room,
+			"Rooms.$.Vip":          userInfo.Vip,
+			"Rooms.$.Moderator":    userInfo.Moderator,
+			"Rooms.$.Subscription": userInfo.Subscription,
+			"Rooms.$.Baneado":      userInfo.Baneado,
+			"Rooms.$.TimeOut":      userInfo.TimeOut,
+			"Rooms.$.EmblemasChat": userInfo.EmblemasChat,
 		},
 	}
 	_, err := Collection.UpdateOne(context.Background(), filter, updateFields)
@@ -471,13 +516,12 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 
 	userHashKey := "userInformation:" + nameUser + ":inTheRoom:" + roomID.Hex()
 	userFields := map[string]interface{}{
-		"Vip":           userInfo.Vip,
-		"Subscription":  userInfo.Subscription,
-		"SubscribedAgo": userInfo.SubscribedAgo,
-		"Baneado":       userInfo.Baneado,
-		"TimeOut":       userInfo.TimeOut,
-		"Moderator":     userInfo.Moderator,
-		"EmblemasChat":  userInfo.EmblemasChat,
+		"Vip":          userInfo.Vip,
+		"Subscription": userInfo.Subscription,
+		"Baneado":      userInfo.Baneado,
+		"TimeOut":      userInfo.TimeOut,
+		"Moderator":    userInfo.Moderator,
+		"EmblemasChat": userInfo.EmblemasChat,
 	}
 
 	err = r.RedisCacheSetUpdata(userHashKey, userFields)

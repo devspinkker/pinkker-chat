@@ -46,21 +46,24 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 		roomID := c.Params("roomID")
 		token := c.Params("token")
 		var nameuser string
-		if token == "" {
-			fmt.Println(token)
-			nameuserExtractDataFromToken, _, _, err := jwt.ExtractDataFromToken(token)
+		var verified bool
+		roomIdObj, errinObjectID := primitive.ObjectIDFromHex(roomID)
+		if errinObjectID != nil {
+			c.WriteMessage(websocket.TextMessage, []byte("Error con el id de la sala"))
+			return
+		}
+		if token != "" {
+			nameuserExtractDataFromToken, _, verifiedToken, err := jwt.ExtractDataFromToken(token)
 			if err != nil {
 				return
 			}
 			nameuser = nameuserExtractDataFromToken
+			verified = verifiedToken
+
 		}
+
 		if len(nameuser) >= 3 {
-			roomIdObj, errinObjectID := primitive.ObjectIDFromHex(roomID)
-			if errinObjectID != nil {
-				c.WriteMessage(websocket.TextMessage, []byte("Error con el id de la sala"))
-				return
-			}
-			infoUser, err := Repository.GetUserInfo(roomIdObj, nameuser, false)
+			infoUser, err := chatHandler.InfoUserRoomChache(roomIdObj, nameuser, verified)
 			if err != nil {
 				c.WriteMessage(websocket.TextMessage, []byte("Error con la info del usuario"))
 				return
@@ -96,7 +99,6 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 				return
 			}
 		}
-
 		for {
 			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, connectedUsers)
 			if errReceiveMessageFromRoom != nil {
