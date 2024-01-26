@@ -201,6 +201,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 	randomIndex := rand.Intn(len(colors))
 	// Obtener el color aleatorio
 	randomColor := colors[randomIndex]
+	var InsertuserInfoCollection bool = false
 
 	defaultUserFields := map[string]interface{}{
 		"Room":             roomID,
@@ -315,22 +316,11 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 
 		Collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("UserInformationInAllRooms")
 		filter := bson.M{"NameUser": nameUser}
-		fmt.Println("****")
-		fmt.Println(nameUser)
-		fmt.Println("****")
 		err = Collection.FindOne(context.Background(), filter).Decode(&infoUser)
-
 		if err == mongo.ErrNoDocuments {
+			InsertuserInfoCollection = true
 			// deberia creaar la info del chat en cuanto se subscribe
-			userInfoCollection := domain.InfoUser{
-				Nameuser: nameUser,
-				Color:    randomColor,
-				Rooms:    []map[string]interface{}{defaultUserFields},
-			}
-			_, err = Collection.InsertOne(context.Background(), userInfoCollection)
-			if err != nil {
-				return domain.UserInfo{}, err
-			}
+
 		} else if err != nil {
 			return userInfo, err
 		}
@@ -457,7 +447,18 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				return domain.UserInfo{}, err
 			}
 		}
+		if InsertuserInfoCollection {
 
+			userInfoCollection := domain.InfoUser{
+				Nameuser: nameUser,
+				Color:    randomColor,
+				Rooms:    []map[string]interface{}{defaultUserFields},
+			}
+			_, err = Collection.InsertOne(context.Background(), userInfoCollection)
+			if err != nil {
+				return domain.UserInfo{}, err
+			}
+		}
 		err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
 		if err != nil {
 			return domain.UserInfo{}, err
