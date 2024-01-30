@@ -30,6 +30,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 		return c.Status(fiber.StatusUpgradeRequired).SendString("Upgrade required")
 	})
 
+	app.Post("/GetInfoUserInRoom", middleware.UseExtractor(), chatHandler.GetInfoUserInRoom)
 	// chat actions
 	app.Post("/actionsChatStream", middleware.UseExtractor(), chatHandler.Actions)
 	app.Post("/actionsModeratorChatStream", middleware.UseExtractor(), chatHandler.ActionModerator)

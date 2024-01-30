@@ -86,20 +86,7 @@ type ModeratorAction struct {
 }
 
 func (a *ModeratorAction) ModeratorActionValidate() error {
-	if len(a.Action) < 3 || len(a.Action) >= 12 {
-		return errors.New("La longitud de 'action' debe ser mayor o igual a 3 caracteres y menor a 12")
-	}
-	if len(a.ActionAgainst) < 3 || len(a.ActionAgainst) >= 15 {
-		return errors.New("La longitud de 'actionAgainst' debe ser mayor o igual a 3 caracteres y menor a 12")
-	}
-	if a.Action == "TimeOut" {
-		if a.TimeOut != 2 {
-			return errors.New("TimeOut error")
-		}
-	}
-	if len(a.Room) < 3 || len(a.Room) >= 15 {
-		return errors.New("missing Room")
-	}
+
 	return nil
 }
 
@@ -136,6 +123,9 @@ func (a *ActivateCommands) ActivateCommandsValidata() error {
 
 type CommandsUpdata struct {
 	CommandsUpdata map[string]string `json:"CommandsUpdata"`
+}
+type GetInfoUserInRoom struct {
+	GetInfoUserInRoom primitive.ObjectID `json:"GetInfoUserInRoom"`
 }
 
 func (a *CommandsUpdata) CommandsUpdataValidata() error {

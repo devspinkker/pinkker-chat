@@ -133,7 +133,7 @@ func (h *ChatHandler) Actions(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "baneado",
 			})
 
@@ -158,7 +158,7 @@ func (h *ChatHandler) Actions(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "Vip",
 			})
 
@@ -171,7 +171,7 @@ func (h *ChatHandler) Actions(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "removeVip",
 			})
 
@@ -183,7 +183,7 @@ func (h *ChatHandler) Actions(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "TimeOut",
 			})
 
@@ -194,7 +194,7 @@ func (h *ChatHandler) Actions(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "Moderator",
 			})
 		}
@@ -205,7 +205,7 @@ func (h *ChatHandler) Actions(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "RemoveModerator",
 			})
 		}
@@ -253,7 +253,7 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "TimeOut",
 			})
 
@@ -265,7 +265,7 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "baneado",
 			})
 
@@ -277,7 +277,7 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "removeban",
 			})
 
@@ -337,5 +337,27 @@ func (h *ChatHandler) UpdataCommands(c *fiber.Ctx) error {
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "ok",
+	})
+}
+
+func (h *ChatHandler) GetInfoUserInRoom(c *fiber.Ctx) error {
+	nameUser := c.Context().UserValue("nameUser").(string)
+	var req domain.GetInfoUserInRoom
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"data": "StatusBadRequest",
+		})
+	}
+
+	InfoUser, err := h.chatService.GetInfoUserInRoom(nameUser, req.GetInfoUserInRoom)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"data": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "ok",
+		"data":    InfoUser,
 	})
 }
