@@ -6,6 +6,7 @@ import (
 	"PINKKER-CHAT/internal/chat/infrastructure"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -171,7 +172,7 @@ func (s *ChatService) Vip(action domain.Action, nameUser primitive.ObjectID, ver
 	VIP := config.VIP()
 
 	userInfo.EmblemasChat["Vip"] = VIP
-
+fmt.Println(userInfo.EmblemasChat["Vip"])
 	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
 	if err != nil {
 		return err
