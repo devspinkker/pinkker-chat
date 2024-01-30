@@ -193,13 +193,13 @@ func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room prim
 func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, verified bool) (domain.UserInfo, error) {
 	var userInfo domain.UserInfo
 	var infoUser domain.InfoUser
+
 	colors := []string{
 		"red", "blue", "green", "yellow", "orange",
 		"pink", "purple", "turquoise", "gray", "white",
 	}
 
 	randomIndex := rand.Intn(len(colors))
-	// Obtener el color aleatorio
 	randomColor := colors[randomIndex]
 	var InsertuserInfoCollection bool = false
 
@@ -285,7 +285,11 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		}
 		userInfo.Moderator = storedUserFields["Moderator"].(bool)
 		userInfo.Baneado = storedUserFields["Baneado"].(bool)
-		userInfo.Color = storedUserFields["Color"].(string)
+		if colorValue, ok := storedUserFields["Color"]; ok && colorValue != nil {
+			userInfo.Color = colorValue.(string)
+		} else {
+			userInfo.Color = "blue"
+		}
 		userInfo.Verified = verified
 		if verified == true {
 			VERIFIED := config.PARTNER()
@@ -328,7 +332,10 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		for _, room := range infoUser.Rooms {
 			if room["Room"] == roomID {
 				roomExists = true
-				valor, _ := room["EmblemasChat"].(map[string]string)
+				valor, ok := room["EmblemasChat"].(map[string]interface{})
+				if !ok {
+					fmt.Println("La clave 'EmblemasChat' no tiene el tipo de mapa esperado.")
+				}
 
 				userInfo = domain.UserInfo{
 					Room:      roomID,
@@ -356,15 +363,15 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				if verified == true {
 					VERIFIED := config.PARTNER()
 					userInfo.EmblemasChat = map[string]string{
-						"Vip":       valor["Vip"],
-						"Moderator": valor["Moderator"],
+						"Vip":       valor["Vip"].(string),
+						"Moderator": valor["Moderator"].(string),
 						"Verified":  VERIFIED,
 					}
 				} else {
 					userInfo.EmblemasChat = map[string]string{
-						"Vip":       valor["Vip"],
-						"Moderator": valor["Moderator"],
-						"Verified":  valor["Verified"],
+						"Vip":       valor["Vip"].(string),
+						"Moderator": valor["Moderator"].(string),
+						"Verified":  valor["Verified"].(string),
 					}
 				}
 
@@ -446,6 +453,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			if err != nil {
 				return domain.UserInfo{}, err
 			}
+
 		}
 		if InsertuserInfoCollection {
 
@@ -464,6 +472,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			return domain.UserInfo{}, err
 		}
 	}
+
 	return userInfo, nil
 }
 func (r *PubSubService) getSubscriptionByID(subscriptionID primitive.ObjectID) (domain.SubscriptionInfo, error) {
@@ -475,7 +484,15 @@ func (r *PubSubService) getSubscriptionByID(subscriptionID primitive.ObjectID) (
 
 	return subscription, err
 }
+func (r *PubSubService) GetStreamByIdUser(IdUser primitive.ObjectID) (domain.Stream, error) {
+	collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("Streams")
 
+	var Stream domain.Stream
+	filter := bson.M{"StreamerID": IdUser}
+	err := collection.FindOne(context.Background(), filter).Decode(&Stream)
+
+	return Stream, err
+}
 func (r *PubSubService) RedisCacheSetUserInfo(userHashKey string, userInfo domain.UserInfo) error {
 	userFieldsJSON, err := json.Marshal(userInfo)
 	if err != nil {
@@ -501,10 +518,8 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 	filter := bson.M{"NameUser": nameUser, "Rooms.Room": roomID}
 	updateFields := bson.M{
 		"$set": bson.M{
-			"Rooms.$.Room":         userInfo.Room,
 			"Rooms.$.Vip":          userInfo.Vip,
 			"Rooms.$.Moderator":    userInfo.Moderator,
-			"Rooms.$.Subscription": userInfo.Subscription,
 			"Rooms.$.Baneado":      userInfo.Baneado,
 			"Rooms.$.TimeOut":      userInfo.TimeOut,
 			"Rooms.$.EmblemasChat": userInfo.EmblemasChat,
@@ -517,12 +532,16 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 
 	userHashKey := "userInformation:" + nameUser + ":inTheRoom:" + roomID.Hex()
 	userFields := map[string]interface{}{
-		"Vip":          userInfo.Vip,
-		"Subscription": userInfo.Subscription,
-		"Baneado":      userInfo.Baneado,
-		"TimeOut":      userInfo.TimeOut,
-		"Moderator":    userInfo.Moderator,
-		"EmblemasChat": userInfo.EmblemasChat,
+		"Vip":              userInfo.Vip,
+		"Baneado":          userInfo.Baneado,
+		"TimeOut":          userInfo.TimeOut,
+		"Moderator":        userInfo.Moderator,
+		"EmblemasChat":     userInfo.EmblemasChat,
+		"Color":            userInfo.Color,
+		"SubscriptionInfo": userInfo.SubscriptionInfo,
+		"Subscription":     userInfo.Subscription,
+		"Verified":         userInfo.Verified,
+		"Room":             userInfo.Room,
 	}
 
 	err = r.RedisCacheSetUpdata(userHashKey, userFields)
@@ -589,6 +608,15 @@ func (r *PubSubService) UpdataCommands(roomID primitive.ObjectID, newCommands ma
 	}
 	_, UpdateOneerr := Collection.UpdateOne(context.Background(), filter, update)
 	return UpdateOneerr
+}
+func (r *PubSubService) GetInfoUserInRoom(nameUser string, GetInfoUserInRoom primitive.ObjectID) (domain.InfoUser, error) {
+	database := r.MongoClient.Database("PINKKER-BACKEND")
+	var InfoUser domain.InfoUser
+	err := database.Collection("UserInformationInAllRooms").FindOne(
+		context.Background(),
+		bson.M{"NameUser": nameUser, "Rooms.Room": GetInfoUserInRoom},
+	).Decode(&InfoUser)
+	return InfoUser, err
 }
 func (r *PubSubService) UserConnectedStream(roomID, command string) error {
 	database := r.MongoClient.Database("PINKKER-BACKEND")

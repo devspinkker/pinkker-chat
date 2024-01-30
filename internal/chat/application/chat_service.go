@@ -105,7 +105,12 @@ func (s *ChatService) InfoUserRoomChache(roomID primitive.ObjectID, nameUser str
 
 // action
 func (s *ChatService) Baneado(action domain.Action, idUser primitive.ObjectID, verified bool) error {
-	roomID := idUser
+
+	stream, err := s.roomRepository.GetStreamByIdUser(idUser)
+	if err != nil {
+		return err
+	}
+	roomID := stream.ID
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, action.ActionAgainst, verified)
 	if err != nil {
 		return err
@@ -126,7 +131,11 @@ func (s *ChatService) Baneado(action domain.Action, idUser primitive.ObjectID, v
 }
 
 func (s *ChatService) Removeban(action domain.Action, nameUser primitive.ObjectID, verified bool) error {
-	roomID := nameUser
+	stream, err := s.roomRepository.GetStreamByIdUser(nameUser)
+	if err != nil {
+		return err
+	}
+	roomID := stream.ID
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, action.ActionAgainst, verified)
 	if err != nil {
 		return err
@@ -146,7 +155,11 @@ func (s *ChatService) Removeban(action domain.Action, nameUser primitive.ObjectI
 }
 
 func (s *ChatService) Vip(action domain.Action, nameUser primitive.ObjectID, verified bool) error {
-	roomID := nameUser
+	stream, err := s.roomRepository.GetStreamByIdUser(nameUser)
+	if err != nil {
+		return err
+	}
+	roomID := stream.ID
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, action.ActionAgainst, verified)
 	if err != nil {
 		return err
@@ -168,7 +181,11 @@ func (s *ChatService) Vip(action domain.Action, nameUser primitive.ObjectID, ver
 }
 
 func (s *ChatService) RemoveVip(action domain.Action, nameUser primitive.ObjectID, verified bool) error {
-	roomID := nameUser
+	stream, err := s.roomRepository.GetStreamByIdUser(nameUser)
+	if err != nil {
+		return err
+	}
+	roomID := stream.ID
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, action.ActionAgainst, verified)
 	if err != nil {
 		return err
@@ -189,7 +206,11 @@ func (s *ChatService) RemoveVip(action domain.Action, nameUser primitive.ObjectI
 }
 
 func (s *ChatService) TimeOut(action domain.Action, nameUser primitive.ObjectID, verified bool) error {
-	roomID := nameUser
+	stream, err := s.roomRepository.GetStreamByIdUser(nameUser)
+	if err != nil {
+		return err
+	}
+	roomID := stream.ID
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, action.ActionAgainst, verified)
 	if err != nil {
 		return err
@@ -205,12 +226,15 @@ func (s *ChatService) TimeOut(action domain.Action, nameUser primitive.ObjectID,
 }
 
 func (s *ChatService) Moderator(action domain.Action, nameUser primitive.ObjectID, verified bool) error {
-	roomID := nameUser
+	stream, err := s.roomRepository.GetStreamByIdUser(nameUser)
+	if err != nil {
+		return err
+	}
+	roomID := stream.ID
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, action.ActionAgainst, verified)
 	if err != nil {
 		return err
 	}
-
 	if userInfo.Moderator == true {
 		return nil
 	}
@@ -228,7 +252,11 @@ func (s *ChatService) Moderator(action domain.Action, nameUser primitive.ObjectI
 }
 
 func (s *ChatService) RemoveModerator(action domain.Action, nameUser primitive.ObjectID, verified bool) error {
-	roomID := nameUser
+	stream, err := s.roomRepository.GetStreamByIdUser(nameUser)
+	if err != nil {
+		return err
+	}
+	roomID := stream.ID
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, action.ActionAgainst, verified)
 	if err != nil {
 		return err
@@ -262,7 +290,6 @@ func (s *ChatService) ModeratorActionBaneado(action domain.ModeratorAction, veri
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 func (s *ChatService) ModeratorActionRemoveban(action domain.ModeratorAction, verified bool) error {
@@ -330,4 +357,9 @@ func (s *ChatService) UserConnectedStream(roomID, command string) error {
 
 	err := s.roomRepository.UserConnectedStream(roomID, command)
 	return err
+}
+func (s *ChatService) GetInfoUserInRoom(nameUser string, GetInfoUserInRoom primitive.ObjectID) (domain.InfoUser, error) {
+
+	InfoUser, UpdataCommandsErr := s.roomRepository.GetInfoUserInRoom(nameUser, GetInfoUserInRoom)
+	return InfoUser, UpdataCommandsErr
 }
