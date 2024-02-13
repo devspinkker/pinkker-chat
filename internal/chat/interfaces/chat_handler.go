@@ -65,34 +65,47 @@ func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser str
 
 	return UserInfo, err
 }
-func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, connectedUsers map[string]bool) error {
+func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, connectedUsers map[string]bool, nameuser string) error {
 
 	roomID := c.Params("roomID")
-	nameuser := c.Params("nameuser")
 
 	sub := h.chatService.SubscribeToRoom(roomID)
-	defer h.chatService.CloseSubscription(sub)
-	go func() {
-		for {
-			_, _, err := c.ReadMessage()
-			if err != nil {
-				if connectedUsers[nameuser] {
-					connectedUsers[nameuser] = false
-					_ = h.chatService.UserConnectedStream(roomID, "disconnect")
+
+	for {
+		go func() {
+			for {
+				_, _, err := c.ReadMessage()
+				if err != nil {
+
+					if connectedUsers[nameuser] && len(nameuser) > 4 {
+
+						connectedUsers[nameuser] = false
+						_ = h.chatService.UserConnectedStream(roomID, "disconnect")
+					}
+					h.chatService.CloseSubscription(sub)
+					c.Close()
 					return
 				}
-				return
 			}
-		}
-	}()
-	for {
+		}()
+
 		message, err := sub.ReceiveMessage(context.Background())
 		if err != nil {
+			if connectedUsers[nameuser] {
+				connectedUsers[nameuser] = false
+				_ = h.chatService.UserConnectedStream(roomID, "disconnect")
+			}
+			h.chatService.CloseSubscription(sub)
 			return err
 		}
 
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
+			if connectedUsers[nameuser] {
+				connectedUsers[nameuser] = false
+				_ = h.chatService.UserConnectedStream(roomID, "disconnect")
+			}
+			h.chatService.CloseSubscription(sub)
 			return err
 		}
 	}
