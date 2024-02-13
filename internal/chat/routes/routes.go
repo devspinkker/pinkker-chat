@@ -6,7 +6,6 @@ import (
 	"PINKKER-CHAT/internal/chat/interfaces"
 	"PINKKER-CHAT/pkg/jwt"
 	"PINKKER-CHAT/pkg/middleware"
-	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -43,9 +42,9 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	app.Post("/chatStreaming/:roomID", middleware.UseExtractor(), chatHandler.SendMessage)
 	var connectedUsers = make(map[string]bool)
 	app.Get("/ws/chatStreaming/:roomID/:token", websocket.New(func(c *websocket.Conn) {
-		defer c.Close()
+		// sub := h.chatService.SubscribeToRoom(roomID)
 		roomID := c.Params("roomID")
-		token := c.Params("token")
+		token := c.Params("token", "null")
 		var nameuser string
 		var verified bool
 		roomIdObj, errinObjectID := primitive.ObjectIDFromHex(roomID)
@@ -53,7 +52,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			c.WriteMessage(websocket.TextMessage, []byte("Error con el id de la sala"))
 			return
 		}
-		if token != "" {
+		if token != "null" {
 			nameuserExtractDataFromToken, _, verifiedToken, err := jwt.ExtractDataFromToken(token)
 			if err != nil {
 				return
@@ -71,38 +70,39 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 			}
 
-			if infoUser.Baneado == true {
-				c.WriteMessage(websocket.TextMessage, []byte("baneadoo"))
-				return
-
+			if infoUser.Baneado {
+				c.WriteMessage(websocket.TextMessage, []byte("baneado"))
 			}
 		}
-		if !connectedUsers[nameuser] {
+		if !connectedUsers[nameuser] && len(nameuser) >= 4 {
 			connectedUsers[nameuser] = true
 			UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, "connect")
 			if UserConnectedStreamERR != nil {
-				fmt.Println(UserConnectedStreamERR)
+				c.Close()
 				return
 			}
 		}
-
 		LastRoomMessages, err := chatHandler.RedisCacheGetLastRoomMessages(roomID)
 
 		if err != nil {
 			if err != redis.Nil {
 				c.WriteMessage(websocket.TextMessage, []byte("Error al unirse a la sala"))
+				c.Close()
 				return
 			}
 		}
 		for i := len(LastRoomMessages) - 1; i >= 0; i-- {
 			err = c.WriteMessage(websocket.TextMessage, []byte(LastRoomMessages[i]))
 			if err != nil {
+				c.Close()
+
 				return
 			}
 		}
 		for {
-			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, connectedUsers)
+			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, connectedUsers, nameuser)
 			if errReceiveMessageFromRoom != nil {
+				c.Close()
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
 				return
 			}
