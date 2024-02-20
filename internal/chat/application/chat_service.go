@@ -172,7 +172,7 @@ func (s *ChatService) Vip(action domain.Action, nameUser primitive.ObjectID, ver
 	VIP := config.VIP()
 
 	userInfo.EmblemasChat["Vip"] = VIP
-fmt.Println(userInfo.EmblemasChat["Vip"])
+	fmt.Println(userInfo.EmblemasChat["Vip"])
 	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
 	if err != nil {
 		return err
@@ -363,4 +363,10 @@ func (s *ChatService) GetInfoUserInRoom(nameUser string, GetInfoUserInRoom primi
 
 	InfoUser, UpdataCommandsErr := s.roomRepository.GetInfoUserInRoom(nameUser, GetInfoUserInRoom)
 	return InfoUser, UpdataCommandsErr
+}
+
+func (s *ChatService) ModeratorRestrictions(ActionAgainst string, room primitive.ObjectID) error {
+
+	err := s.roomRepository.ModeratorRestrictions(ActionAgainst, room)
+	return err
 }

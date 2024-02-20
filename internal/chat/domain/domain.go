@@ -58,9 +58,10 @@ type Datacommands struct {
 
 // request
 type Action struct {
-	Action        string `json:"action"`
-	ActionAgainst string `json:"actionAgainst"`
-	TimeOut       int    `json:"timeOut"`
+	Action        string             `json:"action"`
+	ActionAgainst string             `json:"actionAgainst"`
+	TimeOut       int                `json:"timeOut"`
+	Room          primitive.ObjectID `json:"room"`
 }
 
 func (a *Action) Validate() error {
