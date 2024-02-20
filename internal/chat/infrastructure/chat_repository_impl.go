@@ -5,6 +5,7 @@ import (
 	"PINKKER-CHAT/internal/chat/domain"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"time"
@@ -291,7 +292,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			userInfo.Color = "blue"
 		}
 		userInfo.Verified = verified
-		if verified == true {
+		if verified {
 			VERIFIED := config.PARTNER()
 			defaultUserFields["EmblemasChat"] = map[string]string{
 				"Vip":       "",
@@ -360,7 +361,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				} else {
 					userInfo.TimeOut = time.Now()
 				}
-				if verified == true {
+				if verified {
 					VERIFIED := config.PARTNER()
 					userInfo.EmblemasChat = map[string]string{
 						"Vip":       valor["Vip"].(string),
@@ -427,7 +428,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				},
 				SubscriptionInfo: domain.SubscriptionInfo{},
 			}
-			if verified == true {
+			if verified {
 				VERIFIED := config.PARTNER()
 				userInfo.EmblemasChat = map[string]string{
 					"Vip":       "",
@@ -505,7 +506,7 @@ func (r *PubSubService) RedisCacheSetUserInfo(userHashKey string, userInfo domai
 
 // guardar los ultimos 10 mensajes enviandos a un chat
 func (r *PubSubService) RedisCacheGetLastRoomMessages(Room string) ([]string, error) {
-	messages, err := r.redisClient.LRange(context.Background(), Room+"LastMessages", 0, 9).Result()
+	messages, err := r.redisClient.LRange(context.Background(), Room+"LastMessages", 0, 24).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -665,4 +666,19 @@ func (r *PubSubService) UserConnectedStream(roomID, command string) error {
 	}
 
 	return err
+}
+func (r *PubSubService) ModeratorRestrictions(ActionAgainst string, room primitive.ObjectID) error {
+	database := r.MongoClient.Database("PINKKER-BACKEND")
+
+	var Streamer domain.Stream
+
+	err := database.Collection("Streams").FindOne(context.TODO(), bson.M{"_id": room}).Decode(&Streamer)
+	if err != nil {
+		return err
+	}
+
+	if Streamer.Streamer == ActionAgainst {
+		return errors.New("ModeratorRestrictions, no se puede banear al streamer")
+	}
+	return nil
 }

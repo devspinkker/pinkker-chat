@@ -139,6 +139,12 @@ func (h *ChatHandler) Actions(c *fiber.Ctx) error {
 			"data": err.Error(),
 		})
 	}
+	err = h.chatService.ModeratorRestrictions(req.ActionAgainst, req.Room)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"data": "ModeratorRestrictions",
+		})
+	}
 	if req.Action == "baneado" {
 		errBaneado := h.chatService.Baneado(req, id, verified)
 		if errBaneado != nil {
@@ -256,6 +262,13 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 	if !Moderator {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"data": "not a moderator",
+		})
+	}
+	// puede hacer acciones contra todos menos contra el streamer
+	err := h.chatService.ModeratorRestrictions(req.ActionAgainst, req.Room)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"data": "ModeratorRestrictions",
 		})
 	}
 	// Action  moderador
