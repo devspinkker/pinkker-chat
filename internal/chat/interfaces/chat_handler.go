@@ -66,8 +66,7 @@ func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser str
 
 	return UserInfo, err
 }
-func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string) error {
-	var connectedUsers = utils.NewConnectedUsers()
+func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string, connectedUsers *utils.ConnectedUsers) error {
 	roomID := c.Params("roomID")
 
 	sub := h.chatService.SubscribeToRoom(roomID)
