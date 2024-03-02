@@ -6,6 +6,7 @@ import (
 	"PINKKER-CHAT/internal/chat/interfaces"
 	"PINKKER-CHAT/pkg/jwt"
 	"PINKKER-CHAT/pkg/middleware"
+	"PINKKER-CHAT/pkg/utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -46,7 +47,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 	// chat messages
 	app.Post("/chatStreaming/:roomID", middleware.UseExtractor(), chatHandler.SendMessage)
-	var connectedUsers = make(map[string]bool)
+	var connectedUsers = utils.NewConnectedUsers()
 	app.Get("/ws/chatStreaming/:roomID/:token", websocket.New(func(c *websocket.Conn) {
 		// sub := h.chatService.SubscribeToRoom(roomID)
 		roomID := c.Params("roomID")
@@ -80,8 +81,8 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 				c.WriteMessage(websocket.TextMessage, []byte("baneado"))
 			}
 		}
-		if !connectedUsers[nameuser] && len(nameuser) >= 4 {
-			connectedUsers[nameuser] = true
+		if !connectedUsers.Get(nameuser) && len(nameuser) >= 4 {
+			connectedUsers.Set(nameuser, true)
 			UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, "connect")
 			if UserConnectedStreamERR != nil {
 				c.Close()
@@ -106,7 +107,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			}
 		}
 		for {
-			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, connectedUsers, nameuser)
+			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, nameuser)
 			if errReceiveMessageFromRoom != nil {
 				c.Close()
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))

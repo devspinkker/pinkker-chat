@@ -3,6 +3,7 @@ package interfaces
 import (
 	"PINKKER-CHAT/internal/chat/application"
 	"PINKKER-CHAT/internal/chat/domain"
+	"PINKKER-CHAT/pkg/utils"
 	"context"
 
 	"github.com/gofiber/fiber/v2"
@@ -65,8 +66,8 @@ func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser str
 
 	return UserInfo, err
 }
-func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, connectedUsers map[string]bool, nameuser string) error {
-
+func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string) error {
+	var connectedUsers = utils.NewConnectedUsers()
 	roomID := c.Params("roomID")
 
 	sub := h.chatService.SubscribeToRoom(roomID)
@@ -77,9 +78,8 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, connectedUsers m
 				_, _, err := c.ReadMessage()
 				if err != nil {
 
-					if connectedUsers[nameuser] && len(nameuser) > 4 {
-
-						connectedUsers[nameuser] = false
+					if connectedUsers.Get(nameuser) && len(nameuser) >= 4 {
+						connectedUsers.Set(nameuser, false)
 						_ = h.chatService.UserConnectedStream(roomID, "disconnect")
 					}
 					h.chatService.CloseSubscription(sub)
@@ -91,8 +91,8 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, connectedUsers m
 
 		message, err := sub.ReceiveMessage(context.Background())
 		if err != nil {
-			if connectedUsers[nameuser] {
-				connectedUsers[nameuser] = false
+			if connectedUsers.Get(nameuser) {
+				connectedUsers.Set(nameuser, false)
 				_ = h.chatService.UserConnectedStream(roomID, "disconnect")
 			}
 			h.chatService.CloseSubscription(sub)
@@ -101,8 +101,8 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, connectedUsers m
 
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
-			if connectedUsers[nameuser] {
-				connectedUsers[nameuser] = false
+			if connectedUsers.Get(nameuser) {
+				connectedUsers.Set(nameuser, false)
 				_ = h.chatService.UserConnectedStream(roomID, "disconnect")
 			}
 			h.chatService.CloseSubscription(sub)
