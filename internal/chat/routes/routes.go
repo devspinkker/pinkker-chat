@@ -49,7 +49,6 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	app.Post("/chatStreaming/:roomID", middleware.UseExtractor(), chatHandler.SendMessage)
 	var connectedUsers = utils.NewConnectedUsers()
 	app.Get("/ws/chatStreaming/:roomID/:token", websocket.New(func(c *websocket.Conn) {
-		// sub := h.chatService.SubscribeToRoom(roomID)
 		roomID := c.Params("roomID")
 		token := c.Params("token", "null")
 		var nameuser string
@@ -107,7 +106,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			}
 		}
 		for {
-			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, nameuser)
+			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, nameuser, connectedUsers)
 			if errReceiveMessageFromRoom != nil {
 				c.Close()
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
