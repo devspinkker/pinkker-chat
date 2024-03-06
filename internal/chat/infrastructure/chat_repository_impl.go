@@ -178,7 +178,7 @@ func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room prim
 
 	pipeline.LPush(context.Background(), Room.Hex()+"LastMessages", message)
 
-	pipeline.LTrim(context.Background(), Room.Hex()+"LastMessages", 0, 9)
+	pipeline.LTrim(context.Background(), Room.Hex()+"LastMessages", 0, 19)
 
 	pipeline.Publish(context.Background(), Room.Hex(), message).Err()
 
@@ -568,16 +568,25 @@ func (r *PubSubService) RedisCacheGet(userHashKey string) (string, error) {
 }
 
 // comandos Updata
-func (r *PubSubService) GetCommands(roomID primitive.ObjectID) (domain.Datacommands, error) {
+func (r *PubSubService) GetCommands(id primitive.ObjectID) (domain.Datacommands, error) {
+	collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("Streams")
+
+	var Stream domain.Stream
+	filter := bson.M{"StreamerID": id}
+	err := collection.FindOne(context.Background(), filter).Decode(&Stream)
+	if err != nil {
+		return domain.Datacommands{}, err
+	}
 	Collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("CommandsInChat")
-	filter := bson.M{"Room": roomID}
+
+	filter = bson.M{"Room": Stream.ID}
 	var Commands domain.Datacommands
-	err := Collection.FindOne(context.Background(), filter).Decode(&Commands)
+	err = Collection.FindOne(context.Background(), filter).Decode(&Commands)
 
 	if err == mongo.ErrNoDocuments {
 		// El documento no existe, crearlo
 		defaultCommands := domain.Datacommands{
-			Room:     roomID,
+			Room:     Stream.ID,
 			Commands: make(map[string]string),
 		}
 
@@ -594,14 +603,23 @@ func (r *PubSubService) GetCommands(roomID primitive.ObjectID) (domain.Datacomma
 	return Commands, nil
 }
 
-func (r *PubSubService) UpdataCommands(roomID primitive.ObjectID, newCommands map[string]string) error {
-	cachedCommandsKey := "CommandsInChatThe:" + roomID.Hex()
-	_, err := r.redisClient.Del(context.Background(), cachedCommandsKey).Result()
+func (r *PubSubService) UpdataCommands(id primitive.ObjectID, newCommands map[string]string) error {
+	collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("Streams")
+
+	var Stream domain.Stream
+	filter := bson.M{"StreamerID": id}
+	err := collection.FindOne(context.Background(), filter).Decode(&Stream)
+	if err != nil {
+		return err
+	}
+
+	cachedCommandsKey := "CommandsInChatThe:" + Stream.ID.Hex()
+	_, err = r.redisClient.Del(context.Background(), cachedCommandsKey).Result()
 	if err != nil {
 		return err
 	}
 	Collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("CommandsInChat")
-	filter := bson.M{"Room": roomID}
+	filter = bson.M{"Room": Stream.ID}
 	update := bson.M{
 		"$set": bson.M{
 			"Commands": newCommands,

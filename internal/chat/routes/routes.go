@@ -9,7 +9,6 @@ import (
 	"PINKKER-CHAT/pkg/utils"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/websocket/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -22,12 +21,6 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	Repository := infrastructure.NewRepository(redisClient, MongoClient)
 	chatService := application.NewChatService(Repository)
 	chatHandler := interfaces.NewChatHandler(chatService)
-	app.Use(cors.New(cors.Config{
-		AllowCredentials: true,
-		AllowOrigins:     "https://www.pinkker.tv",
-		AllowHeaders:     "Origin, Content-Type, Accept, Accept-Language, Content-Length",
-		AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
-	}))
 	app.Use("/ws", func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
 			c.Locals("allowed", true)
