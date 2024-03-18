@@ -60,7 +60,7 @@ func (p *PubSubService) PublishCommandInTheRoom(roomID primitive.ObjectID, comma
 	filter := bson.M{"Room": roomID}
 
 	var roomCommands domain.Datacommands
-	roomCommands.Color = "blue"
+	roomCommands.Color = "#7c7ce1"
 	err := Collection.FindOne(context.Background(), filter).Decode(&roomCommands)
 	if err != nil {
 		return err
@@ -75,7 +75,7 @@ func (p *PubSubService) PublishCommandInTheRoom(roomID primitive.ObjectID, comma
 	chatMessage := domain.ChatMessage{
 		NameUser:     "PinkkerBot",
 		Message:      commandContent,
-		Color:        "blue",
+		Color:        "#7c7ce1",
 		Vip:          true,
 		Subscription: primitive.ObjectID{},
 		Baneado:      false,
@@ -196,8 +196,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 	var infoUser domain.InfoUser
 
 	colors := []string{
-		"red", "blue", "green", "yellow", "orange",
-		"pink", "purple", "turquoise", "gray", "white",
+		"#b9d6f6", "#e9113c", "#1475e1", "#00ccb3", "#75fd46",
 	}
 
 	randomIndex := rand.Intn(len(colors))
@@ -219,6 +218,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			"Moderator": "",
 			"Verified":  "",
 		},
+		"Following": domain.FollowInfo{},
 	}
 
 	userHashKey := "userInformation:" + nameUser + ":inTheRoom:" + roomID.Hex()
@@ -346,6 +346,12 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 					Verified:  room["Verified"].(bool),
 					Baneado:   room["Baneado"].(bool),
 				}
+				if followingInfo, ok := room["Following"].(domain.FollowInfo); ok {
+					userInfo.Following = followingInfo
+				} else {
+					fmt.Println("La propiedad 'Following' no tiene el tipo de estructura esperado.")
+				}
+
 				subscriptionID, ok := room["Subscription"].(primitive.ObjectID)
 				if !ok {
 					subscriptionID = primitive.NilObjectID
@@ -427,6 +433,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 					"Verified":  "",
 				},
 				SubscriptionInfo: domain.SubscriptionInfo{},
+				Following:        domain.FollowInfo{},
 			}
 			if verified {
 				VERIFIED := config.PARTNER()
@@ -447,6 +454,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				"Baneado":      false,
 				"TimeOut":      time.Now(),
 				"EmblemasChat": userInfo.EmblemasChat,
+				"Following":    domain.FollowInfo{},
 			}
 
 			infoUser.Rooms = append(infoUser.Rooms, newRoom)

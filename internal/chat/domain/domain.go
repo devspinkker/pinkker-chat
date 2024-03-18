@@ -18,6 +18,7 @@ type UserInfo struct {
 	Baneado          bool
 	TimeOut          time.Time
 	EmblemasChat     map[string]string
+	Following        FollowInfo
 }
 type SubscriptionInfo struct {
 	ID                   primitive.ObjectID `bson:"_id,omitempty"`
@@ -29,6 +30,12 @@ type SubscriptionInfo struct {
 	MonthsSubscribed     int                `bson:"MonthsSubscribed"`
 	Notified             bool               `bson:"Notified"`
 	Text                 string             `bson:"Text"`
+}
+
+type FollowInfo struct {
+	Since         time.Time `json:"since" bson:"since"`
+	Notifications bool      `json:"notifications" bson:"notifications"`
+	Email         string    `json:"Email" bson:"Email"`
 }
 type InfoUser struct {
 	ID       primitive.ObjectID       `bson:"_id,omitempty"`
@@ -142,6 +149,7 @@ type Stream struct {
 	Online             bool               `json:"online" bson:"Online,default:false"`
 	StreamTitle        string             `json:"stream_title" bson:"StreamTitle"`
 	StreamCategory     string             `json:"stream_category" bson:"StreamCategory"`
+	ImageCategorie     string             `json:"ImageCategorie" bson:"ImageCategorie"`
 	StreamNotification string             `json:"stream_notification" bson:"StreamNotification"`
 	StreamTag          []string           `json:"stream_tag"  bson:"StreamTag,default:['Español']"`
 	StreamLikes        []string           `json:"stream_likes" bson:"StreamLikes"`
@@ -150,4 +158,5 @@ type Stream struct {
 	StartDate          time.Time          `json:"start_date" bson:"StartDate"`
 	Timestamp          time.Time          `json:"Timestamp" bson:"Timestamp"`
 	EmotesChat         map[string]string  `json:"EmotesChat" bson:"EmotesChat"`
+	ModChat            string             `json:"ModChat" bson:"ModChat"`
 }
