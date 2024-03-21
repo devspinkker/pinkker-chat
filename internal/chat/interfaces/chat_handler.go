@@ -50,7 +50,8 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 		})
 	}
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
-		"data": "send message",
+		"message": "ok",
+		"data":    "send message",
 	})
 
 }

@@ -224,7 +224,8 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			"Moderator": "",
 			"Verified":  "",
 		},
-		"Following": domain.FollowInfo{},
+		"Following":            domain.FollowInfo{},
+		"StreamerChannelOwner": false,
 	}
 
 	userHashKey := "userInformation:" + nameUser + ":inTheRoom:" + roomID.Hex()
@@ -236,13 +237,15 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			return userInfo, errUnmarshal
 		}
 		userInfo.Vip, _ = storedUserFields["Vip"].(bool)
-		subscriptionValue, ok := storedUserFields["Subscription"].(string)
+		userInfo.StreamerChannelOwner, _ = storedUserFields["StreamerChannelOwner"].(bool)
+
+		subscriptionValue, _ := storedUserFields["Subscription"].(string)
 
 		subscriptionID, err := primitive.ObjectIDFromHex(subscriptionValue)
 		if err == nil {
 			userInfo.Subscription = subscriptionID
 		} else {
-			subscriptionID = primitive.NilObjectID
+			userInfo.Subscription = primitive.NilObjectID
 		}
 
 		subscriptionInfoInterface, ok := storedUserFields["SubscriptionInfo"]
@@ -357,7 +360,12 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				} else {
 					userInfo.Following = domain.FollowInfo{}
 				}
-
+				if owner, ok := room["StreamerChannelOwner"].(bool); ok {
+					userInfo.StreamerChannelOwner = owner
+				} else {
+					streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
+					userInfo.StreamerChannelOwner = streamerChannelOwner
+				}
 				subscriptionID, ok := room["Subscription"].(primitive.ObjectID)
 				if !ok {
 					subscriptionID = primitive.NilObjectID
@@ -441,6 +449,8 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				SubscriptionInfo: domain.SubscriptionInfo{},
 				Following:        domain.FollowInfo{},
 			}
+			streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
+			userInfo.StreamerChannelOwner = streamerChannelOwner
 			if verified {
 				VERIFIED := config.PARTNER()
 				userInfo.EmblemasChat = map[string]string{
@@ -451,16 +461,17 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			}
 
 			newRoom := map[string]interface{}{
-				"Room":         roomID,
-				"Vip":          false,
-				"Color":        randomColor,
-				"Moderator":    false,
-				"Verified":     verified,
-				"Subscription": primitive.ObjectID{},
-				"Baneado":      false,
-				"TimeOut":      time.Now(),
-				"EmblemasChat": userInfo.EmblemasChat,
-				"Following":    domain.FollowInfo{},
+				"Room":                 roomID,
+				"Vip":                  false,
+				"Color":                randomColor,
+				"Moderator":            false,
+				"Verified":             verified,
+				"Subscription":         primitive.ObjectID{},
+				"Baneado":              false,
+				"TimeOut":              time.Now(),
+				"EmblemasChat":         userInfo.EmblemasChat,
+				"Following":            domain.FollowInfo{},
+				"StreamerChannelOwner": userInfo.StreamerChannelOwner,
 			}
 
 			infoUser.Rooms = append(infoUser.Rooms, newRoom)
@@ -713,4 +724,19 @@ func (r *PubSubService) ModeratorRestrictions(ActionAgainst string, room primiti
 		return errors.New("ModeratorRestrictions, no se puede banear al streamer")
 	}
 	return nil
+}
+func (r *PubSubService) streamerChannelOwner(nameUser string, room primitive.ObjectID) (bool, error) {
+	db := r.MongoClient.Database("PINKKER-BACKEND")
+	StreamsCollection := db.Collection("Streams")
+	filter := bson.M{"_id": room}
+	var infoStream domain.Stream
+	err := StreamsCollection.FindOne(context.Background(), filter).Decode(&infoStream)
+	if err != nil {
+		return false, err
+	}
+	coincide := false
+	if infoStream.Streamer == nameUser {
+		coincide = true
+	}
+	return coincide, nil
 }
