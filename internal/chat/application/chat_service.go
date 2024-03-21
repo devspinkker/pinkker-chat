@@ -249,7 +249,7 @@ func (s *ChatService) Moderator(action domain.Action, nameUser primitive.ObjectI
 	if err != nil {
 		return err
 	}
-	if userInfo.Moderator == true {
+	if userInfo.Moderator {
 		return nil
 	}
 
@@ -275,7 +275,7 @@ func (s *ChatService) RemoveModerator(action domain.Action, nameUser primitive.O
 	if err != nil {
 		return err
 	}
-	if userInfo.Moderator == false {
+	if !userInfo.Moderator {
 		return nil
 	}
 	userInfo.Moderator = false
@@ -350,7 +350,7 @@ func (s *ChatService) GetUserInfo(roomID primitive.ObjectID, nameUser string, ve
 	if errGetUserInfo != nil {
 		return false, errGetUserInfo
 	}
-	if userInfo.Moderator == true {
+	if userInfo.Moderator {
 		return true, nil
 	} else {
 		return false, nil
