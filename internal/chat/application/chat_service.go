@@ -48,39 +48,43 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 	if err != nil {
 		return err
 	}
-	if userInfo.Baneado {
-		return errors.New("baneado")
-	}
-	nowUserInfoTimeOut := time.Now()
-	if !userInfo.TimeOut.Before(nowUserInfoTimeOut) {
-		remainingTime := userInfo.TimeOut.Sub(nowUserInfoTimeOut)
-		return errors.New("TimeOut: " + remainingTime.String())
+	if !userInfo.StreamerChannelOwner {
+		if userInfo.Baneado {
+			return errors.New("baneado")
+		}
+		nowUserInfoTimeOut := time.Now()
+		if !userInfo.TimeOut.Before(nowUserInfoTimeOut) {
+			remainingTime := userInfo.TimeOut.Sub(nowUserInfoTimeOut)
+			return errors.New("TimeOut: " + remainingTime.String())
+		}
+
+		modChat, err := s.roomRepository.RedisGetModStream(roomID)
+		if err != nil {
+			modChat = ""
+		}
+		if modChat == "Following" {
+			if userInfo.Following.Email == "" {
+				return errors.New("only followers")
+			}
+		} else if modChat == "Subscriptions" {
+			if userInfo.Subscription == primitive.NilObjectID {
+				return errors.New("only subscribers")
+			}
+		}
 	}
 
-	modChat, err := s.roomRepository.RedisGetModStream(roomID)
-	if err != nil {
-		return err
-	}
-	if modChat == "Following" {
-		if userInfo.Following.Email == "" {
-			return errors.New("only followers")
-		}
-	} else if modChat == "Subscriptions" {
-		if userInfo.Subscription == primitive.NilObjectID {
-			return errors.New("only subscribers")
-		}
-	}
 	chatMessage := domain.ChatMessage{
-		NameUser:         nameUser,
-		Color:            userInfo.Color,
-		Message:          message,
-		Vip:              userInfo.Vip,
-		Subscription:     userInfo.Subscription,
-		SubscriptionInfo: userInfo.SubscriptionInfo,
-		Baneado:          userInfo.Baneado,
-		TimeOut:          userInfo.TimeOut,
-		Moderator:        userInfo.Moderator,
-		EmblemasChat:     userInfo.EmblemasChat,
+		NameUser:             nameUser,
+		Color:                userInfo.Color,
+		Message:              message,
+		Vip:                  userInfo.Vip,
+		Subscription:         userInfo.Subscription,
+		SubscriptionInfo:     userInfo.SubscriptionInfo,
+		Baneado:              userInfo.Baneado,
+		TimeOut:              userInfo.TimeOut,
+		Moderator:            userInfo.Moderator,
+		EmblemasChat:         userInfo.EmblemasChat,
+		StreamerChannelOwner: userInfo.StreamerChannelOwner,
 	}
 
 	chatMessageJSON, err := json.Marshal(chatMessage)

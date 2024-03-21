@@ -8,17 +8,18 @@ import (
 )
 
 type UserInfo struct {
-	Room             primitive.ObjectID
-	Color            string
-	Vip              bool
-	Verified         bool
-	Moderator        bool
-	Subscription     primitive.ObjectID
-	SubscriptionInfo SubscriptionInfo
-	Baneado          bool
-	TimeOut          time.Time
-	EmblemasChat     map[string]string
-	Following        FollowInfo
+	Room                 primitive.ObjectID
+	Color                string
+	Vip                  bool
+	Verified             bool
+	Moderator            bool
+	Subscription         primitive.ObjectID
+	SubscriptionInfo     SubscriptionInfo
+	Baneado              bool
+	TimeOut              time.Time
+	EmblemasChat         map[string]string
+	Following            FollowInfo
+	StreamerChannelOwner bool
 }
 type SubscriptionInfo struct {
 	ID                   primitive.ObjectID `bson:"_id,omitempty"`
@@ -45,16 +46,17 @@ type InfoUser struct {
 }
 
 type ChatMessage struct {
-	NameUser         string             `json:"nameUser"`
-	Color            string             `json:"Color" bson:"Color"`
-	Message          string             `json:"message"`
-	Vip              bool               `json:"vip"`
-	Subscription     primitive.ObjectID `json:"subscription"`
-	SubscriptionInfo SubscriptionInfo
-	TimeOut          time.Time         `json:"timeOut"`
-	Baneado          bool              `json:"baneado"`
-	Moderator        bool              `json:"moderator"`
-	EmblemasChat     map[string]string `json:"EmotesChat"`
+	NameUser             string             `json:"nameUser"`
+	Color                string             `json:"Color" bson:"Color"`
+	Message              string             `json:"message"`
+	Vip                  bool               `json:"vip"`
+	Subscription         primitive.ObjectID `json:"subscription"`
+	SubscriptionInfo     SubscriptionInfo
+	TimeOut              time.Time         `json:"timeOut"`
+	Baneado              bool              `json:"baneado"`
+	Moderator            bool              `json:"moderator"`
+	EmblemasChat         map[string]string `json:"EmotesChat"`
+	StreamerChannelOwner bool              `json:"StreamerChannelOwner"`
 }
 type Datacommands struct {
 	ID       primitive.ObjectID `json:"id" bson:"_id,omitempty"`
