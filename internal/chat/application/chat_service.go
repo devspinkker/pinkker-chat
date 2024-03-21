@@ -57,6 +57,19 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 		return errors.New("TimeOut: " + remainingTime.String())
 	}
 
+	modChat, err := s.roomRepository.RedisGetModStream(roomID)
+	if err != nil {
+		return err
+	}
+	if modChat == "Following" {
+		if userInfo.Following.Email == "" {
+			return errors.New("only followers")
+		}
+	} else if modChat == "Subscriptions" {
+		if userInfo.Subscription == primitive.NilObjectID {
+			return errors.New("only subscribers")
+		}
+	}
 	chatMessage := domain.ChatMessage{
 		NameUser:         nameUser,
 		Color:            userInfo.Color,
