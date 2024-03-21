@@ -189,6 +189,12 @@ func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room prim
 
 	RedisCacheSetLastRoomMessagesChan <- nil
 }
+func (r *PubSubService) RedisGetModStream(Room primitive.ObjectID) (string, error) {
+
+	value, err := r.redisClient.Get(context.Background(), Room.Hex()).Result()
+	return value, err
+
+}
 
 // uso general sobre informacion de un usuario en una sala
 func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, verified bool) (domain.UserInfo, error) {
@@ -349,7 +355,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				if followingInfo, ok := room["Following"].(domain.FollowInfo); ok {
 					userInfo.Following = followingInfo
 				} else {
-					fmt.Println("La propiedad 'Following' no tiene el tipo de estructura esperado.")
+					userInfo.Following = domain.FollowInfo{}
 				}
 
 				subscriptionID, ok := room["Subscription"].(primitive.ObjectID)
