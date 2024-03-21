@@ -35,10 +35,7 @@ func (s *ChatService) CloseSubscription(sub *redis.PubSub) error {
 
 func (s *ChatService) ReceiveMessageFromRoom(roomID string) (string, error) {
 	message, err := s.roomRepository.ReceiveMessageFromRoom(roomID)
-	if err != nil {
-		return "", err
-	}
-	return message, nil
+	return message, err
 }
 
 // chat messages
