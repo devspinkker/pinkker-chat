@@ -293,6 +293,26 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		} else {
 			userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
 		}
+
+		if followingInfoMap, ok := storedUserFields["Following"].(map[string]interface{}); ok {
+			followingInfo := domain.FollowInfo{}
+
+			if sinceTime, ok := followingInfoMap["Since"].(time.Time); ok {
+				followingInfo.Since = sinceTime
+			}
+
+			if notificationsBool, ok := followingInfoMap["Notifications"].(bool); ok {
+				followingInfo.Notifications = notificationsBool
+			}
+
+			if emailString, ok := followingInfoMap["Email"].(string); ok {
+				followingInfo.Email = emailString
+			}
+
+			userInfo.Following = followingInfo
+		} else {
+			userInfo.Following = domain.FollowInfo{}
+		}
 		userInfo.Moderator = storedUserFields["Moderator"].(bool)
 		userInfo.Baneado = storedUserFields["Baneado"].(bool)
 		if colorValue, ok := storedUserFields["Color"]; ok && colorValue != nil {
@@ -355,11 +375,26 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 					Verified:  room["Verified"].(bool),
 					Baneado:   room["Baneado"].(bool),
 				}
-				if followingInfo, ok := room["Following"].(domain.FollowInfo); ok {
+				if followingInfoMap, ok := room["Following"].(map[string]interface{}); ok {
+					followingInfo := domain.FollowInfo{}
+
+					if sinceTime, ok := followingInfoMap["Since"].(time.Time); ok {
+						followingInfo.Since = sinceTime
+					}
+
+					if notificationsBool, ok := followingInfoMap["Notifications"].(bool); ok {
+						followingInfo.Notifications = notificationsBool
+					}
+
+					if emailString, ok := followingInfoMap["Email"].(string); ok {
+						followingInfo.Email = emailString
+					}
+
 					userInfo.Following = followingInfo
 				} else {
 					userInfo.Following = domain.FollowInfo{}
 				}
+
 				if owner, ok := room["StreamerChannelOwner"].(bool); ok {
 					userInfo.StreamerChannelOwner = owner
 				} else {
