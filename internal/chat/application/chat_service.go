@@ -59,6 +59,7 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 		if err != nil {
 			modChat = ""
 		}
+
 		if modChat == "Following" {
 			if userInfo.Following.Email == "" {
 				return errors.New("only followers")
