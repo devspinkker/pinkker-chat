@@ -709,35 +709,9 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 		return err
 	}
 
-	activeUsersKey := "ActiveUsers"
+	err = r.performUserTransaction(ctx, session, roomID, nameUser)
 
-	err = r.redisClient.Watch(ctx, func(tx *redis.Tx) error {
-		isActive, err := tx.SIsMember(ctx, activeUsersKey, nameUser).Result()
-		if err != nil {
-			return err
-		}
-
-		switch {
-		case isActive:
-			err := tx.SRem(ctx, activeUsersKey, nameUser).Err()
-			if err != nil {
-				return err
-			}
-			return r.performDisconnectOperations(ctx, session, roomID)
-		default:
-			err := tx.SAdd(ctx, activeUsersKey, nameUser).Err()
-			if err != nil {
-				return err
-			}
-			return r.performConnectOperations(ctx, session, roomID)
-		}
-
-	}, activeUsersKey)
-
-	if err == redis.TxFailedErr {
-		session.AbortTransaction(ctx)
-		return errors.New("transaction failed")
-	} else if err != nil {
+	if err != nil {
 		session.AbortTransaction(ctx)
 		return err
 	}
@@ -750,7 +724,13 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 	return nil
 }
 
-func (r *PubSubService) performDisconnectOperations(ctx context.Context, session mongo.Session, roomID string) error {
+func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string) error {
+	activeUsersKey := "ActiveUsers"
+	isActive, err := r.redisClient.SIsMember(ctx, activeUsersKey, nameUser).Result()
+	if err != nil {
+		return err
+	}
+
 	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
 	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
 
@@ -759,81 +739,81 @@ func (r *PubSubService) performDisconnectOperations(ctx context.Context, session
 		return err
 	}
 
-	_, err = streamCollection.UpdateOne(ctx,
-		bson.M{"_id": roomIDObj},
-		bson.M{"$inc": bson.M{"ViewerCount": -1}})
-	if err != nil {
-		return err
-	}
-
-	var updatedStream domain.Stream
-	err = streamCollection.FindOne(ctx, bson.M{"_id": roomIDObj}).Decode(&updatedStream)
-	if err != nil {
-		return err
-	}
-	categoria := updatedStream.StreamCategory
-
-	_, err = categoriaCollection.UpdateOne(ctx,
-		bson.M{"Name": categoria},
-		bson.M{"$inc": bson.M{"Spectators": -1}})
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			_, err = categoriaCollection.InsertOne(ctx, bson.M{
-				"Name":       categoria,
-				"Img":        "",
-				"Spectators": 1,
-				"Tags":       []string{},
-			})
-			if err != nil {
-				return err
-			}
-		} else {
+	if isActive {
+		err = r.redisClient.SRem(ctx, activeUsersKey, nameUser).Err()
+		if err != nil {
 			return err
 		}
-	}
 
-	return nil
-}
+		_, err = streamCollection.UpdateOne(ctx,
+			bson.M{"_id": roomIDObj},
+			bson.M{"$inc": bson.M{"ViewerCount": -1}})
+		if err != nil {
+			return err
+		}
 
-func (r *PubSubService) performConnectOperations(ctx context.Context, session mongo.Session, roomID string) error {
-	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
-	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
+		var updatedStream domain.Stream
+		err = streamCollection.FindOne(ctx, bson.M{"_id": roomIDObj}).Decode(&updatedStream)
+		if err != nil {
+			return err
+		}
+		categoria := updatedStream.StreamCategory
 
-	roomIDObj, err := primitive.ObjectIDFromHex(roomID)
-	if err != nil {
-		return err
-	}
-
-	_, err = streamCollection.UpdateOne(ctx,
-		bson.M{"_id": roomIDObj},
-		bson.M{"$inc": bson.M{"ViewerCount": 1}})
-	if err != nil {
-		return err
-	}
-
-	var updatedStream domain.Stream
-	err = streamCollection.FindOne(ctx, bson.M{"_id": roomIDObj}).Decode(&updatedStream)
-	if err != nil {
-		return err
-	}
-	categoria := updatedStream.StreamCategory
-
-	_, err = categoriaCollection.UpdateOne(ctx,
-		bson.M{"Name": categoria},
-		bson.M{"$inc": bson.M{"Spectators": 1}})
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			_, err = categoriaCollection.InsertOne(ctx, bson.M{
-				"Name":       categoria,
-				"Img":        "",
-				"Spectators": 1,
-				"Tags":       []string{},
-			})
-			if err != nil {
+		_, err = categoriaCollection.UpdateOne(ctx,
+			bson.M{"Name": categoria},
+			bson.M{"$inc": bson.M{"Spectators": -1}})
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				_, err = categoriaCollection.InsertOne(ctx, bson.M{
+					"Name":       categoria,
+					"Img":        "",
+					"Spectators": 1,
+					"Tags":       []string{},
+				})
+				if err != nil {
+					return err
+				}
+			} else {
 				return err
 			}
-		} else {
+		}
+	} else {
+		err = r.redisClient.SAdd(ctx, activeUsersKey, nameUser).Err()
+		if err != nil {
 			return err
+		}
+
+		_, err = streamCollection.UpdateOne(ctx,
+			bson.M{"_id": roomIDObj},
+			bson.M{"$inc": bson.M{"ViewerCount": 1}})
+		if err != nil {
+			return err
+		}
+
+		var updatedStream domain.Stream
+		err = streamCollection.FindOne(ctx, bson.M{"_id": roomIDObj}).Decode(&updatedStream)
+		if err != nil {
+			return err
+		}
+		categoria := updatedStream.StreamCategory
+
+		_, err = categoriaCollection.UpdateOne(ctx,
+			bson.M{"Name": categoria},
+			bson.M{"$inc": bson.M{"Spectators": 1}})
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				_, err = categoriaCollection.InsertOne(ctx, bson.M{
+					"Name":       categoria,
+					"Img":        "",
+					"Spectators": 1,
+					"Tags":       []string{},
+				})
+				if err != nil {
+					return err
+				}
+			} else {
+				return err
+			}
 		}
 	}
 
