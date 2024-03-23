@@ -131,11 +131,11 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		if followingInfoMap, ok := storedUserFields["Following"].(map[string]interface{}); ok {
 			followingInfo := domain.FollowInfo{}
 
-			if sinceTime, ok := followingInfoMap["Since"].(time.Time); ok {
+			if sinceTime, ok := followingInfoMap["since"].(time.Time); ok {
 				followingInfo.Since = sinceTime
 			}
 
-			if notificationsBool, ok := followingInfoMap["Notifications"].(bool); ok {
+			if notificationsBool, ok := followingInfoMap["notifications"].(bool); ok {
 				followingInfo.Notifications = notificationsBool
 			}
 
@@ -195,9 +195,6 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		roomExists := false
 		for _, room := range infoUser.Rooms {
 			if room["Room"] == roomID {
-				fmt.Println("x1111")
-				fmt.Println(infoUser.Rooms)
-				fmt.Println("x1111")
 				roomExists = true
 				valor, ok := room["EmblemasChat"].(map[string]interface{})
 				if !ok {
@@ -212,12 +209,6 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 					Verified:  room["Verified"].(bool),
 					Baneado:   room["Baneado"].(bool),
 				}
-				fmt.Println("x33")
-				fmt.Println(room)
-				fmt.Println("x33")
-				fmt.Println("x21")
-				fmt.Println(room["Following"])
-				fmt.Println("x21")
 				followingInfoMap, ok := room["Following"].(map[string]interface{})
 				if ok {
 					followingInfo := domain.FollowInfo{}
@@ -236,10 +227,9 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 
 					userInfo.Following = followingInfo
 				} else {
-					// userInfo.Following = domain.FollowInfo{}
-					fmt.Println("El campo 'Following' no tiene el tipo de mapa esperado.")
+					userInfo.Following = domain.FollowInfo{}
 				}
-
+				fmt.Println(userInfo.Following)
 				if owner, ok := room["StreamerChannelOwner"].(bool); ok {
 					userInfo.StreamerChannelOwner = owner
 				} else {
@@ -707,54 +697,150 @@ func (r *PubSubService) GetInfoUserInRoom(nameUser string, GetInfoUserInRoom pri
 	).Decode(&InfoUser)
 	return InfoUser, err
 }
-func (r *PubSubService) UserConnectedStream(roomID, command string) error {
-	database := r.MongoClient.Database("PINKKER-BACKEND")
-	streamCollection := database.Collection("Streams")
-	categoriaCollection := database.Collection("Categorias")
-
-	streamUpdate := bson.M{"$inc": bson.M{"ViewerCount": 1}}
-
-	if command == "disconnect" {
-		streamUpdate = bson.M{"$inc": bson.M{"ViewerCount": -1}}
+func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUser, command string) error {
+	session, err := r.MongoClient.StartSession()
+	if err != nil {
+		return err
 	}
+	defer session.EndSession(ctx)
+
+	err = session.StartTransaction()
+	if err != nil {
+		return err
+	}
+
+	activeUsersKey := "ActiveUsers"
+
+	err = r.redisClient.Watch(ctx, func(tx *redis.Tx) error {
+		isActive, err := tx.SIsMember(ctx, activeUsersKey, nameUser).Result()
+		if err != nil {
+			return err
+		}
+
+		switch {
+		case isActive && command == "disconnect":
+			err := tx.SRem(ctx, activeUsersKey, nameUser).Err()
+			if err != nil {
+				return err
+			}
+			return r.performDisconnectOperations(ctx, session, roomID)
+		case !isActive && command != "disconnect":
+			err := tx.SAdd(ctx, activeUsersKey, nameUser).Err()
+			if err != nil {
+				return err
+			}
+			return r.performConnectOperations(ctx, session, roomID)
+		}
+
+		return nil
+	}, activeUsersKey)
+
+	if err == redis.TxFailedErr {
+		session.AbortTransaction(ctx)
+		return errors.New("transaction failed")
+	} else if err != nil {
+		session.AbortTransaction(ctx)
+		return err
+	}
+
+	err = session.CommitTransaction(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *PubSubService) performDisconnectOperations(ctx context.Context, session mongo.Session, roomID string) error {
+	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
+	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
 
 	roomIDObj, err := primitive.ObjectIDFromHex(roomID)
 	if err != nil {
 		return err
 	}
 
-	streamFilter := bson.M{"_id": roomIDObj}
-
-	var updatedStream domain.Stream
-	err = streamCollection.FindOneAndUpdate(context.Background(), streamFilter, streamUpdate).Decode(&updatedStream)
+	_, err = streamCollection.UpdateOne(ctx,
+		bson.M{"_id": roomIDObj},
+		bson.M{"$inc": bson.M{"ViewerCount": -1}})
 	if err != nil {
 		return err
 	}
 
+	var updatedStream domain.Stream
+	err = streamCollection.FindOne(ctx, bson.M{"_id": roomIDObj}).Decode(&updatedStream)
+	if err != nil {
+		return err
+	}
 	categoria := updatedStream.StreamCategory
 
-	categoriaUpdate := bson.M{"$inc": bson.M{"Spectators": 1}}
-
-	if command == "disconnect" {
-		categoriaUpdate = bson.M{"$inc": bson.M{"Spectators": -1}}
-	}
-
-	categoriaFilter := bson.M{"Name": categoria}
-
-	result, err := categoriaCollection.UpdateOne(context.Background(), categoriaFilter, categoriaUpdate)
-
-	if result.MatchedCount == 0 {
-		nuevaCategoria := bson.M{
-			"Name":       categoria,
-			"Img":        "",
-			"Spectators": 1,
-			"Tags":       []string{},
+	_, err = categoriaCollection.UpdateOne(ctx,
+		bson.M{"Name": categoria},
+		bson.M{"$inc": bson.M{"Spectators": -1}})
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			_, err = categoriaCollection.InsertOne(ctx, bson.M{
+				"Name":       categoria,
+				"Img":        "",
+				"Spectators": 1,
+				"Tags":       []string{},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
 		}
-		_, err = categoriaCollection.InsertOne(context.Background(), nuevaCategoria)
 	}
 
-	return err
+	return nil
 }
+
+func (r *PubSubService) performConnectOperations(ctx context.Context, session mongo.Session, roomID string) error {
+	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
+	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
+
+	roomIDObj, err := primitive.ObjectIDFromHex(roomID)
+	if err != nil {
+		return err
+	}
+
+	_, err = streamCollection.UpdateOne(ctx,
+		bson.M{"_id": roomIDObj},
+		bson.M{"$inc": bson.M{"ViewerCount": 1}})
+	if err != nil {
+		return err
+	}
+
+	var updatedStream domain.Stream
+	err = streamCollection.FindOne(ctx, bson.M{"_id": roomIDObj}).Decode(&updatedStream)
+	if err != nil {
+		return err
+	}
+	categoria := updatedStream.StreamCategory
+
+	_, err = categoriaCollection.UpdateOne(ctx,
+		bson.M{"Name": categoria},
+		bson.M{"$inc": bson.M{"Spectators": 1}})
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			_, err = categoriaCollection.InsertOne(ctx, bson.M{
+				"Name":       categoria,
+				"Img":        "",
+				"Spectators": 1,
+				"Tags":       []string{},
+			})
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (r *PubSubService) ModeratorRestrictions(ActionAgainst string, room primitive.ObjectID) error {
 	database := r.MongoClient.Database("PINKKER-BACKEND")
 

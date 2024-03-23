@@ -4,6 +4,7 @@ import (
 	"PINKKER-CHAT/config"
 	"PINKKER-CHAT/internal/chat/domain"
 	"PINKKER-CHAT/internal/chat/infrastructure"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -369,9 +370,9 @@ func (s *ChatService) UpdataCommands(roomID primitive.ObjectID, newCommands map[
 	UpdataCommandsErr := s.roomRepository.UpdataCommands(roomID, newCommands)
 	return UpdataCommandsErr
 }
-func (s *ChatService) UserConnectedStream(roomID, command string) error {
-
-	err := s.roomRepository.UserConnectedStream(roomID, command)
+func (s *ChatService) UserConnectedStream(roomID, nameUser, command string) error {
+	ctx := context.TODO()
+	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser, command)
 	return err
 }
 func (s *ChatService) GetInfoUserInRoom(nameUser string, GetInfoUserInRoom primitive.ObjectID) (domain.InfoUser, error) {

@@ -3,7 +3,6 @@ package interfaces
 import (
 	"PINKKER-CHAT/internal/chat/application"
 	"PINKKER-CHAT/internal/chat/domain"
-	"PINKKER-CHAT/pkg/utils"
 	"context"
 
 	"github.com/gofiber/fiber/v2"
@@ -55,9 +54,9 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 	})
 
 }
-func (h *ChatHandler) UserConnectedStream(roomID, commando string) error {
+func (h *ChatHandler) UserConnectedStream(roomID, nameUser, commando string) error {
 
-	err := h.chatService.UserConnectedStream(roomID, commando)
+	err := h.chatService.UserConnectedStream(roomID, nameUser, commando)
 
 	return err
 }
@@ -67,7 +66,7 @@ func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser str
 
 	return UserInfo, err
 }
-func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string, connectedUsers *utils.ConnectedUsers) error {
+func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string) error {
 	roomID := c.Params("roomID")
 
 	sub := h.chatService.SubscribeToRoom(roomID)
@@ -78,9 +77,8 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string,
 				_, _, err := c.ReadMessage()
 				if err != nil {
 
-					if connectedUsers.Get(nameuser) && len(nameuser) >= 4 {
-						connectedUsers.Set(nameuser, false)
-						_ = h.chatService.UserConnectedStream(roomID, "disconnect")
+					if len(nameuser) >= 4 {
+						_ = h.chatService.UserConnectedStream(roomID, nameuser, "disconnect")
 					}
 					h.chatService.CloseSubscription(sub)
 					c.Close()
@@ -91,20 +89,14 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string,
 
 		message, err := sub.ReceiveMessage(context.Background())
 		if err != nil {
-			if connectedUsers.Get(nameuser) {
-				connectedUsers.Set(nameuser, false)
-				_ = h.chatService.UserConnectedStream(roomID, "disconnect")
-			}
+			_ = h.chatService.UserConnectedStream(roomID, nameuser, "disconnect")
 			h.chatService.CloseSubscription(sub)
 			return err
 		}
 
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
-			if connectedUsers.Get(nameuser) {
-				connectedUsers.Set(nameuser, false)
-				_ = h.chatService.UserConnectedStream(roomID, "disconnect")
-			}
+			_ = h.chatService.UserConnectedStream(roomID, nameuser, "disconnect")
 			h.chatService.CloseSubscription(sub)
 			return err
 		}
