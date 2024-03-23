@@ -54,9 +54,9 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 	})
 
 }
-func (h *ChatHandler) UserConnectedStream(roomID, nameUser, commando string) error {
+func (h *ChatHandler) UserConnectedStream(roomID, nameUser string) error {
 
-	err := h.chatService.UserConnectedStream(roomID, nameUser, commando)
+	err := h.chatService.UserConnectedStream(roomID, nameUser)
 
 	return err
 }
@@ -78,7 +78,7 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string)
 				if err != nil {
 
 					if len(nameuser) >= 4 {
-						_ = h.chatService.UserConnectedStream(roomID, nameuser, "disconnect")
+						_ = h.chatService.UserConnectedStream(roomID, nameuser)
 					}
 					h.chatService.CloseSubscription(sub)
 					c.Close()
@@ -89,14 +89,14 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string)
 
 		message, err := sub.ReceiveMessage(context.Background())
 		if err != nil {
-			_ = h.chatService.UserConnectedStream(roomID, nameuser, "disconnect")
+			_ = h.chatService.UserConnectedStream(roomID, nameuser)
 			h.chatService.CloseSubscription(sub)
 			return err
 		}
 
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
-			_ = h.chatService.UserConnectedStream(roomID, nameuser, "disconnect")
+			_ = h.chatService.UserConnectedStream(roomID, nameuser)
 			h.chatService.CloseSubscription(sub)
 			return err
 		}
