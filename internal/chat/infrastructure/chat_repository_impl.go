@@ -697,7 +697,7 @@ func (r *PubSubService) GetInfoUserInRoom(nameUser string, GetInfoUserInRoom pri
 	).Decode(&InfoUser)
 	return InfoUser, err
 }
-func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUser, command string) error {
+func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUser string) error {
 	session, err := r.MongoClient.StartSession()
 	if err != nil {
 		return err
@@ -718,13 +718,13 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 		}
 
 		switch {
-		case isActive && command == "disconnect":
+		case isActive:
 			err := tx.SRem(ctx, activeUsersKey, nameUser).Err()
 			if err != nil {
 				return err
 			}
 			return r.performDisconnectOperations(ctx, session, roomID)
-		case !isActive && command != "disconnect":
+		default:
 			err := tx.SAdd(ctx, activeUsersKey, nameUser).Err()
 			if err != nil {
 				return err
@@ -732,7 +732,6 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 			return r.performConnectOperations(ctx, session, roomID)
 		}
 
-		return nil
 	}, activeUsersKey)
 
 	if err == redis.TxFailedErr {

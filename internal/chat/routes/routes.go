@@ -59,7 +59,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 		}
 
-		if len(nameuser) >= 3 {
+		if len(nameuser) >= 4 {
 			infoUser, err := chatHandler.InfoUserRoomChache(roomIdObj, nameuser, verified)
 			if err != nil {
 				c.WriteMessage(websocket.TextMessage, []byte("Error con la info del usuario"))
@@ -72,7 +72,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			}
 		}
 		if len(nameuser) >= 4 {
-			UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, nameuser, "connect")
+			UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, nameuser)
 			if UserConnectedStreamERR != nil {
 				c.Close()
 				return

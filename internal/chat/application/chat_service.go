@@ -370,9 +370,9 @@ func (s *ChatService) UpdataCommands(roomID primitive.ObjectID, newCommands map[
 	UpdataCommandsErr := s.roomRepository.UpdataCommands(roomID, newCommands)
 	return UpdataCommandsErr
 }
-func (s *ChatService) UserConnectedStream(roomID, nameUser, command string) error {
+func (s *ChatService) UserConnectedStream(roomID, nameUser string) error {
 	ctx := context.TODO()
-	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser, command)
+	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser)
 	return err
 }
 func (s *ChatService) GetInfoUserInRoom(nameUser string, GetInfoUserInRoom primitive.ObjectID) (domain.InfoUser, error) {
