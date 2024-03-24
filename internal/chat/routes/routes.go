@@ -6,7 +6,6 @@ import (
 	"PINKKER-CHAT/internal/chat/interfaces"
 	"PINKKER-CHAT/pkg/jwt"
 	"PINKKER-CHAT/pkg/middleware"
-	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -102,7 +101,6 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			if errReceiveMessageFromRoom != nil {
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
 				chatHandler.UserConnectedStream(roomID, nameuser)
-				fmt.Println("se desconecto")
 				c.Close()
 				return
 			}
