@@ -162,3 +162,55 @@ type Stream struct {
 	EmotesChat         map[string]string  `json:"EmotesChat" bson:"EmotesChat"`
 	ModChat            string             `json:"ModChat" bson:"ModChat"`
 }
+
+type User struct {
+	ID                primitive.ObjectID     `json:"id" bson:"_id,omitempty"`
+	Avatar            string                 `json:"Avatar" default:"https://res.cloudinary.com/pinkker/image/upload/v1680478837/foto_default_obyind.png" bson:"Avatar"`
+	FullName          string                 `json:"FullName" bson:"FullName"`
+	NameUser          string                 `json:"NameUser" bson:"NameUser"`
+	PasswordHash      string                 `json:"passwordHash" bson:"PasswordHash"`
+	Pais              string                 `json:"Pais" bson:"Pais"`
+	Subscriptions     []primitive.ObjectID   `bson:"Subscriptions"`
+	Subscribers       []primitive.ObjectID   `bson:"Subscribers"`
+	Clips             []primitive.ObjectID   `bson:"Clips,omitempty"`
+	ClipsLikes        []primitive.ObjectID   `bson:"ClipsLikes,omitempty"`
+	Ciudad            string                 `json:"Ciudad" bson:"Ciudad"`
+	Email             string                 `json:"Email" bson:"Email"`
+	EmailConfirmation bool                   `json:"EmailConfirmation" bson:"EmailConfirmation,default:false"`
+	Role              int                    `json:"role" bson:"Role,default:0"`
+	KeyTransmission   string                 `json:"keyTransmission,omitempty" bson:"KeyTransmission"`
+	Biography         string                 `json:"biography" default:"Bienvenido a pinkker! actualiza tu biografía en ajustes de cuenta." bson:"Biography"`
+	Look              string                 `json:"look" default:"h_std_cc_3032_7_0-undefined-undefined.ch-215-62-78.hd-180-10.lg-270-110" bson:"Look"`
+	LookImage         string                 `json:"lookImage" default:"https://res.cloudinary.com/pinkker/image/upload/v1680478837/foto_default_obyind.png" bson:"LookImage"`
+	HeadImage         string                 `json:"headImage" default:"https://res.cloudinary.com/pinkker/image/upload/v1680478837/foto_default_obyind.png" bson:"headImage"`
+	Color             string                 `json:"color" bson:"Color"`
+	BirthDate         time.Time              `json:"birthDate" bson:"BirthDate"`
+	Pixeles           float64                `json:"Pixeles,default:0.0" bson:"Pixeles,default:0.0"`
+	CustomAvatar      bool                   `json:"customAvatar,omitempty" bson:"CustomAvatar"`
+	CountryInfo       map[string]interface{} `json:"countryInfo,omitempty" bson:"CountryInfo"`
+	PinkkerPrime      struct {
+		Active bool      `json:"active,omitempty" bson:"Active,omitempty"`
+		Date   time.Time `json:"date,omitempty" bson:"Date,omitempty"`
+	} `json:"pinkkerPrime,omitempty" bson:"PinkkerPrime"`
+	Suscribers    []string `json:"suscribers,omitempty" bson:"Suscribers"`
+	SocialNetwork struct {
+		Facebook  string `json:"facebook,omitempty" bson:"facebook"`
+		Twitter   string `json:"twitter,omitempty" bson:"twitter"`
+		Instagram string `json:"instagram,omitempty" bson:"instagram"`
+		Youtube   string `json:"youtube,omitempty" bson:"youtube"`
+		Tiktok    string `json:"tiktok,omitempty" bson:"tiktok"`
+	} `json:"socialnetwork,omitempty" bson:"socialnetwork"`
+	Cmt                      string                            `json:"cmt,omitempty" bson:"Cmt"`
+	Verified                 bool                              `json:"verified,omitempty" bson:"Verified"`
+	Website                  string                            `json:"website,omitempty" bson:"Website"`
+	Phone                    string                            `json:"phone,omitempty" bson:"Phone"`
+	Sex                      string                            `json:"sex,omitempty" bson:"Sex"`
+	Situation                string                            `json:"situation,omitempty" bson:"Situation"`
+	UserFriendsNotifications int                               `json:"userFriendsNotifications,omitempty" bson:"UserFriendsNotifications"`
+	Following                map[primitive.ObjectID]FollowInfo `json:"Following" bson:"Following"`
+	Followers                map[primitive.ObjectID]FollowInfo `json:"Followers" bson:"Followers"`
+	Timestamp                time.Time                         `json:"Timestamp" bson:"Timestamp"`
+	Likes                    []primitive.ObjectID              `json:"Likes" bson:"Likes"`
+	Wallet                   string                            `json:"Wallet" bson:"Wallet"`
+	Online                   bool                              `json:"Online,omitempty" bson:"Online,omitempty" default:"false"`
+}

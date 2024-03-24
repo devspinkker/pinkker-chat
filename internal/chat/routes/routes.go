@@ -6,6 +6,7 @@ import (
 	"PINKKER-CHAT/internal/chat/interfaces"
 	"PINKKER-CHAT/pkg/jwt"
 	"PINKKER-CHAT/pkg/middleware"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -82,6 +83,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 		if err != nil {
 			if err != redis.Nil {
+				chatHandler.UserConnectedStream(roomID, nameuser)
 				c.WriteMessage(websocket.TextMessage, []byte("Error al unirse a la sala"))
 				c.Close()
 				return
@@ -90,16 +92,18 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 		for i := len(LastRoomMessages) - 1; i >= 0; i-- {
 			err = c.WriteMessage(websocket.TextMessage, []byte(LastRoomMessages[i]))
 			if err != nil {
+				chatHandler.UserConnectedStream(roomID, nameuser)
 				c.Close()
-
 				return
 			}
 		}
 		for {
 			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, nameuser)
 			if errReceiveMessageFromRoom != nil {
-				c.Close()
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
+				chatHandler.UserConnectedStream(roomID, nameuser)
+				fmt.Println("se desconecto")
+				c.Close()
 				return
 			}
 		}

@@ -62,15 +62,21 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 	if err != nil {
 		return err
 	}
+	fmt.Println(isActive)
 
 	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
+	UserCollection := session.Client().Database("PINKKER-BACKEND").Collection("Users")
 	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
 
 	roomIDObj, err := primitive.ObjectIDFromHex(roomID)
 	if err != nil {
 		return err
 	}
-
+	var UserExist domain.User
+	err = UserCollection.FindOne(ctx, bson.M{"_id": roomIDObj}).Decode(&UserExist)
+	if err != nil {
+		return err
+	}
 	if isActive {
 		err = r.redisClient.SRem(ctx, activeUsersKey, nameUser).Err()
 		if err != nil {

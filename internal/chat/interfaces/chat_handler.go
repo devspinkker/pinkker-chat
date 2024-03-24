@@ -76,10 +76,6 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string)
 			for {
 				_, _, err := c.ReadMessage()
 				if err != nil {
-
-					if len(nameuser) >= 4 {
-						_ = h.chatService.UserConnectedStream(roomID, nameuser)
-					}
 					h.chatService.CloseSubscription(sub)
 					c.Close()
 					return
@@ -89,14 +85,12 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string)
 
 		message, err := sub.ReceiveMessage(context.Background())
 		if err != nil {
-			_ = h.chatService.UserConnectedStream(roomID, nameuser)
 			h.chatService.CloseSubscription(sub)
 			return err
 		}
 
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
-			_ = h.chatService.UserConnectedStream(roomID, nameuser)
 			h.chatService.CloseSubscription(sub)
 			return err
 		}
