@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -29,6 +30,36 @@ func NewRepository(redisClient *redis.Client, MongoClient *mongo.Client) *PubSub
 		subscriptions: map[string]*redis.PubSub{},
 	}
 }
+func (r *PubSubService) RedisGetModSlowModeStream(Room primitive.ObjectID) (int, error) {
+	value, err := r.redisClient.Get(context.Background(), Room.Hex()+"ModSlowMode").Result()
+	if err == nil {
+		modSlowMode, err := strconv.Atoi(value)
+		if err != nil {
+			return 0, err
+		}
+		return modSlowMode, nil
+	} else if err != redis.Nil {
+		return 0, err
+	}
+
+	var stream domain.Stream
+	err = r.MongoClient.Database("PINKKER-BACKEND").Collection("Streams").
+		FindOne(context.Background(), bson.M{"Streamer": Room.Hex()}).
+		Decode(&stream)
+	if err != nil {
+		return 0, err
+	}
+
+	modSlowMode := stream.ModSlowMode
+
+	err = r.redisClient.Set(context.Background(), Room.Hex()+"ModSlowMode", modSlowMode, 0).Err()
+	if err != nil {
+		return 0, err
+	}
+
+	return modSlowMode, nil
+}
+
 func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUser string) error {
 	session, err := r.MongoClient.StartSession()
 	if err != nil {
@@ -684,13 +715,6 @@ func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room prim
 func (r *PubSubService) RedisGetModStream(Room primitive.ObjectID) (string, error) {
 
 	value, err := r.redisClient.Get(context.Background(), Room.Hex()).Result()
-	return value, err
-
-}
-
-func (r *PubSubService) RedisGetModSlowModeStream(Room primitive.ObjectID) (string, error) {
-
-	value, err := r.redisClient.Get(context.Background(), Room.Hex()+"ModSlowMode").Result()
 	return value, err
 
 }

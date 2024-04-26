@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -73,16 +72,15 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 		}
 		ModSlowModeStream, err := s.roomRepository.RedisGetModSlowModeStream(roomID)
 		if err != nil {
-			ModSlowModeStream = "0"
+			ModSlowModeStream = 0
 		}
-		modSlowMode, err := strconv.Atoi(ModSlowModeStream)
-		if err != nil {
-			return errors.New("modSlowMode strconv err")
+
+		allowedTime := userInfo.LastMessage.Add(time.Duration(ModSlowModeStream) * time.Second)
+
+		if time.Now().Before(allowedTime) || time.Now().Equal(allowedTime) {
+			return errors.New("no puedes enviar un mensaje en este momento")
 		}
-		allowedTime := userInfo.LastMessage.Add(time.Duration(modSlowMode) * time.Second)
-		if time.Now().After(allowedTime) {
-			return errors.New("ModSlowModeStream")
-		}
+
 	}
 
 	chatMessage := domain.ChatMessage{
