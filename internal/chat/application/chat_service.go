@@ -80,7 +80,7 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 			return errors.New("modSlowMode strconv err")
 		}
 		allowedTime := userInfo.LastMessage.Add(time.Duration(modSlowMode) * time.Second)
-		if time.Now().Before(allowedTime) || time.Now().Equal(allowedTime) {
+		if time.Now().After(allowedTime) {
 			return errors.New("ModSlowModeStream")
 		}
 	}
@@ -106,7 +106,7 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 	// saveMessageChan := make(chan error)
 	RedisCacheSetLastRoomMessagesAndPublishMessageChan := make(chan error)
 
-	go s.roomRepository.RedisCacheSetLastRoomMessagesAndPublishMessage(roomID, string(chatMessageJSON), RedisCacheSetLastRoomMessagesAndPublishMessageChan)
+	go s.roomRepository.RedisCacheSetLastRoomMessagesAndPublishMessage(roomID, string(chatMessageJSON), RedisCacheSetLastRoomMessagesAndPublishMessageChan, nameUser)
 	// go s.roomRepository.SaveMessageTheUserInRoom(nameUser, roomID, string(chatMessageJSON), saveMessageChan)
 	go func() {
 		if message[0] == '!' {
