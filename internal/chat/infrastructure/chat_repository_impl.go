@@ -52,7 +52,7 @@ func (r *PubSubService) RedisGetModSlowModeStream(Room primitive.ObjectID) (int,
 
 	modSlowMode := stream.ModSlowMode
 
-	err = r.redisClient.Set(context.Background(), Room.Hex()+"ModSlowMode", modSlowMode, 200).Err()
+	err = r.redisClient.Set(context.Background(), Room.Hex()+"ModSlowMode", modSlowMode, 200*time.Second).Err()
 	if err != nil {
 		return 0, err
 	}
