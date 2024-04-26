@@ -187,6 +187,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		},
 		"Following":            domain.FollowInfo{},
 		"StreamerChannelOwner": false,
+		"LastMessage":          time.Now(),
 	}
 
 	userHashKey := "userInformation:" + nameUser + ":inTheRoom:" + roomID.Hex()
@@ -199,6 +200,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		}
 		userInfo.Vip, _ = storedUserFields["Vip"].(bool)
 		userInfo.StreamerChannelOwner, _ = storedUserFields["StreamerChannelOwner"].(bool)
+		userInfo.LastMessage, _ = storedUserFields["LastMessage"].(time.Time)
 
 		subscriptionValue, _ := storedUserFields["Subscription"].(string)
 
@@ -329,12 +331,13 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				}
 
 				userInfo = domain.UserInfo{
-					Room:      roomID,
-					Color:     randomColor,
-					Vip:       room["Vip"].(bool),
-					Moderator: room["Moderator"].(bool),
-					Verified:  room["Verified"].(bool),
-					Baneado:   room["Baneado"].(bool),
+					Room:        roomID,
+					Color:       randomColor,
+					Vip:         room["Vip"].(bool),
+					Moderator:   room["Moderator"].(bool),
+					Verified:    room["Verified"].(bool),
+					Baneado:     room["Baneado"].(bool),
+					LastMessage: room["LastMessage"].(time.Time),
 				}
 				followingInfoMap, ok := room["Following"].(map[string]interface{})
 				if ok {
@@ -443,6 +446,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				},
 				SubscriptionInfo: domain.SubscriptionInfo{},
 				Following:        domain.FollowInfo{},
+				LastMessage:      time.Now(),
 			}
 			streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
 			userInfo.StreamerChannelOwner = streamerChannelOwner
@@ -467,6 +471,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				"EmblemasChat":         userInfo.EmblemasChat,
 				"Following":            domain.FollowInfo{},
 				"StreamerChannelOwner": userInfo.StreamerChannelOwner,
+				"LastMessage":          time.Now(),
 			}
 
 			infoUser.Rooms = append(infoUser.Rooms, newRoom)
@@ -659,6 +664,13 @@ func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room prim
 func (r *PubSubService) RedisGetModStream(Room primitive.ObjectID) (string, error) {
 
 	value, err := r.redisClient.Get(context.Background(), Room.Hex()).Result()
+	return value, err
+
+}
+
+func (r *PubSubService) RedisGetModSlowModeStream(Room primitive.ObjectID) (string, error) {
+
+	value, err := r.redisClient.Get(context.Background(), Room.Hex()+"ModSlowMode").Result()
 	return value, err
 
 }

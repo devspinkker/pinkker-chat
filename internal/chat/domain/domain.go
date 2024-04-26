@@ -20,6 +20,7 @@ type UserInfo struct {
 	EmblemasChat         map[string]string
 	Following            FollowInfo
 	StreamerChannelOwner bool
+	LastMessage          time.Time
 }
 type SubscriptionInfo struct {
 	ID                   primitive.ObjectID `bson:"_id,omitempty"`
