@@ -331,13 +331,19 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				}
 
 				userInfo = domain.UserInfo{
-					Room:        roomID,
-					Color:       randomColor,
-					Vip:         room["Vip"].(bool),
-					Moderator:   room["Moderator"].(bool),
-					Verified:    room["Verified"].(bool),
-					Baneado:     room["Baneado"].(bool),
-					LastMessage: room["LastMessage"].(time.Time),
+					Room:      roomID,
+					Color:     randomColor,
+					Vip:       room["Vip"].(bool),
+					Moderator: room["Moderator"].(bool),
+					Verified:  room["Verified"].(bool),
+					Baneado:   room["Baneado"].(bool),
+				}
+				LastMessage, ok := room["LastMessage"].(time.Time)
+				if ok {
+					userInfo.LastMessage = LastMessage
+				} else {
+
+					userInfo.LastMessage = time.Now()
 				}
 				followingInfoMap, ok := room["Following"].(map[string]interface{})
 				if ok {
@@ -644,7 +650,7 @@ func (s *PubSubService) SaveMessageTheUserInRoom(nameUser string, roomID primiti
 	}
 	saveMessageChan <- nil
 }
-func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room primitive.ObjectID, message string, RedisCacheSetLastRoomMessagesChan chan error) {
+func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room primitive.ObjectID, message string, RedisCacheSetLastRoomMessagesChan chan error, NameUser string) {
 
 	pipeline := r.redisClient.Pipeline()
 
@@ -658,8 +664,22 @@ func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room prim
 	if err != nil {
 		RedisCacheSetLastRoomMessagesChan <- err
 	}
+	userHashKey := "userInformation:" + NameUser + ":inTheRoom:" + Room.Hex()
 
-	RedisCacheSetLastRoomMessagesChan <- nil
+	userInfoStr, err := r.RedisCacheGet(userHashKey)
+	if err != nil {
+		RedisCacheSetLastRoomMessagesChan <- err
+	}
+
+	var userInfo domain.UserInfo
+	if err := json.Unmarshal([]byte(userInfoStr), &userInfo); err != nil {
+		RedisCacheSetLastRoomMessagesChan <- err
+	}
+
+	userInfo.LastMessage = time.Now()
+
+	err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
+	RedisCacheSetLastRoomMessagesChan <- err
 }
 func (r *PubSubService) RedisGetModStream(Room primitive.ObjectID) (string, error) {
 
