@@ -335,9 +335,13 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		if errtimeOut != nil {
 			return userInfo, errtimeOut
 		}
-		userInfo.LastMessage = time.Now()
-
 		userInfo.TimeOut = timeOut
+		LastMessageStr := storedUserFields["LastMessage"].(string)
+		LastMessagOut, LastMessagOutErr := time.Parse(time.RFC3339, LastMessageStr)
+		if LastMessagOutErr != nil {
+			return userInfo, LastMessagOutErr
+		}
+		userInfo.LastMessage = LastMessagOut
 	} else if err != redis.Nil {
 		return userInfo, err
 	} else {
