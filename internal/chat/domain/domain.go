@@ -162,6 +162,7 @@ type Stream struct {
 	Timestamp          time.Time          `json:"Timestamp" bson:"Timestamp"`
 	EmotesChat         map[string]string  `json:"EmotesChat" bson:"EmotesChat"`
 	ModChat            string             `json:"ModChat" bson:"ModChat"`
+	ModSlowMode        int                `json:"ModSlowMode" bson:"ModSlowMode"`
 }
 
 type User struct {
