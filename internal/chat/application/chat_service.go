@@ -74,10 +74,11 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 		if err != nil {
 			ModSlowModeStream = 0
 		}
-
 		allowedTime := userInfo.LastMessage.Add(time.Duration(ModSlowModeStream) * time.Second)
-
-		if time.Now().Before(allowedTime) || time.Now().Equal(allowedTime) {
+		fmt.Println(userInfo.LastMessage)
+		fmt.Println(allowedTime)
+		fmt.Println(time.Now())
+		if time.Now().Before(allowedTime) {
 			return errors.New("no puedes enviar un mensaje en este momento")
 		}
 

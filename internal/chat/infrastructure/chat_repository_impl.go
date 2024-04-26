@@ -44,7 +44,7 @@ func (r *PubSubService) RedisGetModSlowModeStream(Room primitive.ObjectID) (int,
 
 	var stream domain.Stream
 	err = r.MongoClient.Database("PINKKER-BACKEND").Collection("Streams").
-		FindOne(context.Background(), bson.M{"Streamer": Room.Hex()}).
+		FindOne(context.Background(), bson.M{"_id": Room}).
 		Decode(&stream)
 	if err != nil {
 		return 0, err
@@ -52,7 +52,7 @@ func (r *PubSubService) RedisGetModSlowModeStream(Room primitive.ObjectID) (int,
 
 	modSlowMode := stream.ModSlowMode
 
-	err = r.redisClient.Set(context.Background(), Room.Hex()+"ModSlowMode", modSlowMode, 0).Err()
+	err = r.redisClient.Set(context.Background(), Room.Hex()+"ModSlowMode", modSlowMode, 200).Err()
 	if err != nil {
 		return 0, err
 	}
@@ -231,8 +231,6 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		}
 		userInfo.Vip, _ = storedUserFields["Vip"].(bool)
 		userInfo.StreamerChannelOwner, _ = storedUserFields["StreamerChannelOwner"].(bool)
-		userInfo.LastMessage, _ = storedUserFields["LastMessage"].(time.Time)
-
 		subscriptionValue, _ := storedUserFields["Subscription"].(string)
 
 		subscriptionID, err := primitive.ObjectIDFromHex(subscriptionValue)
@@ -337,6 +335,8 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		if errtimeOut != nil {
 			return userInfo, errtimeOut
 		}
+		userInfo.LastMessage = time.Now()
+
 		userInfo.TimeOut = timeOut
 	} else if err != redis.Nil {
 		return userInfo, err
@@ -369,13 +369,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 					Verified:  room["Verified"].(bool),
 					Baneado:   room["Baneado"].(bool),
 				}
-				LastMessage, ok := room["LastMessage"].(time.Time)
-				if ok {
-					userInfo.LastMessage = LastMessage
-				} else {
-
-					userInfo.LastMessage = time.Now()
-				}
+				userInfo.LastMessage = time.Now()
 				followingInfoMap, ok := room["Following"].(map[string]interface{})
 				if ok {
 					followingInfo := domain.FollowInfo{}
