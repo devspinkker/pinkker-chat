@@ -6,6 +6,7 @@ import (
 	"PINKKER-CHAT/internal/chat/interfaces"
 	"PINKKER-CHAT/pkg/jwt"
 	"PINKKER-CHAT/pkg/middleware"
+	"PINKKER-CHAT/pkg/utils"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -106,6 +107,27 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			}
 		}
 
+	}))
+
+	// Agregar un nuevo punto final para eliminar mensajes
+	app.Delete("/chatStreaming/:roomID/messages/:messageID", middleware.UseExtractor(), chatHandler.DeleteMessage)
+	app.Get("/ws/notifications/deleteMessages/:roomID", websocket.New(func(c *websocket.Conn) {
+		roomID := c.Params("roomID")
+		chatService := utils.NewChatService()
+		client := &utils.Client{Connection: c}
+		chatService.AddClientToRoom(roomID, client)
+
+		defer func() {
+			chatService.RemoveClientFromRoom(roomID, client)
+			_ = c.Close()
+		}()
+
+		for {
+			_, _, err := c.ReadMessage()
+			if err != nil {
+				break
+			}
+		}
 	}))
 
 }
