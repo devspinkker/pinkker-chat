@@ -336,12 +336,18 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			return userInfo, errtimeOut
 		}
 		userInfo.TimeOut = timeOut
-		LastMessageStr := storedUserFields["LastMessage"].(string)
-		LastMessagOut, LastMessagOutErr := time.Parse(time.RFC3339, LastMessageStr)
-		if LastMessagOutErr != nil {
-			return userInfo, LastMessagOutErr
+		if storedUserFields["LastMessage"] != nil {
+			LastMessageStr := storedUserFields["LastMessage"].(string)
+			LastMessagOut, LastMessagOutErr := time.Parse(time.RFC3339, LastMessageStr)
+			if LastMessagOutErr != nil {
+				return userInfo, LastMessagOutErr
+			}
+			userInfo.LastMessage = LastMessagOut
+		} else {
+			fmt.Println(userInfo)
+			fmt.Println("si pasa")
+			userInfo.LastMessage = time.Now()
 		}
-		userInfo.LastMessage = LastMessagOut
 	} else if err != redis.Nil {
 		return userInfo, err
 	} else {
@@ -394,7 +400,6 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				} else {
 					userInfo.Following = domain.FollowInfo{}
 				}
-				fmt.Println(userInfo.Following)
 				if owner, ok := room["StreamerChannelOwner"].(bool); ok {
 					userInfo.StreamerChannelOwner = owner
 				} else {
@@ -784,6 +789,7 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 		"Subscription":     userInfo.Subscription,
 		"Verified":         userInfo.Verified,
 		"Room":             userInfo.Room,
+		"LastMessage":      userInfo.LastMessage,
 	}
 
 	err = r.RedisCacheSetUpdata(userHashKey, userFields)
