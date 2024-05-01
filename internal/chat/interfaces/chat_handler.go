@@ -54,18 +54,86 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 	})
 
 }
+func (h *ChatHandler) DeleteMessage(c *fiber.Ctx) error {
+	roomID := c.Params("roomID")
+	messageID := c.Params("messageID")
+	verified := c.Context().UserValue("verified").(bool)
+	NameUser := c.Context().UserValue("nameUser").(string)
+
+	IdUserTokenP, errinObjectID := primitive.ObjectIDFromHex(roomID)
+	if errinObjectID != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "StatusInternalServerError",
+		})
+	}
+	Moderator, errGetUserInfo := h.chatService.GetUserInfo(IdUserTokenP, NameUser, verified)
+
+	if errGetUserInfo != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"data": "StatusInternalServerError",
+		})
+	}
+	if !Moderator {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"data": "not a moderator",
+		})
+	}
+
+	// // Eliminar el mensaje
+	// err := h.chatService.DeleteMessage(roomID, messageID)
+	// if err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	// 		"error": "Error deleting message",
+	// 	})
+	// }
+
+	// Envía una notificación al frontend indicando que el mensaje fue eliminado
+	err := h.NotifyMessageDeletedToRoomClients(roomID, messageID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error notifying message deletion",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Message deleted successfully",
+	})
+}
+
+func (h *ChatHandler) NotifyMessageDeletedToRoomClients(roomID, messageID string) error {
+	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
+	if err != nil {
+		return err
+	}
+	notification := map[string]interface{}{
+		"action":     "message_deleted",
+		"message_id": messageID,
+	}
+
+	for _, client := range clients {
+		err = client.WriteJSON(notification)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (h *ChatHandler) UserConnectedStream(roomID, nameUser string) error {
 
 	err := h.chatService.UserConnectedStream(roomID, nameUser)
 
 	return err
 }
+
 func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser string, verified bool) (domain.UserInfo, error) {
 
 	UserInfo, err := h.chatService.InfoUserRoomChache(roomID, nameUser, verified)
 
 	return UserInfo, err
 }
+
 func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string) error {
 	roomID := c.Params("roomID")
 

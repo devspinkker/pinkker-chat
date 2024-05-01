@@ -53,11 +53,12 @@ type ChatMessage struct {
 	Vip                  bool               `json:"vip"`
 	Subscription         primitive.ObjectID `json:"subscription"`
 	SubscriptionInfo     SubscriptionInfo
-	TimeOut              time.Time         `json:"timeOut"`
-	Baneado              bool              `json:"baneado"`
-	Moderator            bool              `json:"moderator"`
-	EmblemasChat         map[string]string `json:"EmotesChat"`
-	StreamerChannelOwner bool              `json:"StreamerChannelOwner"`
+	TimeOut              time.Time          `json:"timeOut"`
+	Baneado              bool               `json:"baneado"`
+	Moderator            bool               `json:"moderator"`
+	EmblemasChat         map[string]string  `json:"EmotesChat"`
+	StreamerChannelOwner bool               `json:"StreamerChannelOwner"`
+	Id                   primitive.ObjectID `json:"Id"`
 }
 type Datacommands struct {
 	ID       primitive.ObjectID `json:"id" bson:"_id,omitempty"`

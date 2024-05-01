@@ -4,12 +4,14 @@ import (
 	"PINKKER-CHAT/config"
 	"PINKKER-CHAT/internal/chat/domain"
 	"PINKKER-CHAT/internal/chat/infrastructure"
+	"PINKKER-CHAT/pkg/utils"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
 
+	"github.com/gofiber/websocket/v2"
 	"github.com/redis/go-redis/v9"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -37,6 +39,11 @@ func (s *ChatService) CloseSubscription(sub *redis.PubSub) error {
 func (s *ChatService) ReceiveMessageFromRoom(roomID string) (string, error) {
 	message, err := s.roomRepository.ReceiveMessageFromRoom(roomID)
 	return message, err
+}
+func (s *ChatService) GetWebSocketClientsInRoom(roomID string) ([]*websocket.Conn, error) {
+	clients, err := utils.NewChatService().GetWebSocketClientsInRoom(roomID)
+
+	return clients, err
 }
 
 // chat messages
@@ -93,6 +100,7 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 		Moderator:            userInfo.Moderator,
 		EmblemasChat:         userInfo.EmblemasChat,
 		StreamerChannelOwner: userInfo.StreamerChannelOwner,
+		Id:                   primitive.NewObjectID(),
 	}
 
 	chatMessageJSON, err := json.Marshal(chatMessage)

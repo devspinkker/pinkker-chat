@@ -89,103 +89,102 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 
 func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string) error {
 	activeUsersKey := "ActiveUsers"
-	isActive, err := r.redisClient.SIsMember(ctx, activeUsersKey, nameUser).Result()
+	activeUserRoomsKey := "ActiveUserRooms:" + nameUser // Clave para las salas activas del usuario
+
+	// Verificar si el usuario ya está activo en la sala actual
+	isActive, err := r.redisClient.SIsMember(ctx, activeUserRoomsKey, roomID).Result()
 	if err != nil {
 		return err
 	}
 
-	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
-	UserCollection := session.Client().Database("PINKKER-BACKEND").Collection("Users")
-	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
+	// Si el usuario ya está activo en la sala, lo eliminamos
+	if isActive {
+		_, err := r.redisClient.SRem(ctx, activeUserRoomsKey, roomID).Result()
+		if err != nil {
+			return err
+		}
 
+		// Disminuir el contador de espectadores para la sala
+		roomIDObj, err := primitive.ObjectIDFromHex(roomID)
+		if err != nil {
+			return err
+		}
+
+		_, err = r.updateViewerCount(ctx, session, roomIDObj, -1)
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
+	// Agregar al usuario como activo en la nueva sala
+	err = r.redisClient.SAdd(ctx, activeUserRoomsKey, roomID).Err()
+	if err != nil {
+		return err
+	}
+
+	// Incrementar el contador de espectadores para la sala
 	roomIDObj, err := primitive.ObjectIDFromHex(roomID)
 	if err != nil {
 		return err
 	}
-	var UserExist domain.User
-	err = UserCollection.FindOne(ctx, bson.M{"NameUser": nameUser}).Decode(&UserExist)
+
+	_, err = r.updateViewerCount(ctx, session, roomIDObj, 1)
 	if err != nil {
 		return err
 	}
-	if isActive {
-		err = r.redisClient.SRem(ctx, activeUsersKey, nameUser).Err()
-		if err != nil {
-			return err
-		}
 
-		_, err = streamCollection.UpdateOne(ctx,
-			bson.M{"_id": roomIDObj},
-			bson.M{"$inc": bson.M{"ViewerCount": -1}})
-		if err != nil {
-			return err
-		}
-
-		var updatedStream domain.Stream
-		err = streamCollection.FindOne(ctx, bson.M{"_id": roomIDObj}).Decode(&updatedStream)
-		if err != nil {
-			return err
-		}
-		categoria := updatedStream.StreamCategory
-
-		_, err = categoriaCollection.UpdateOne(ctx,
-			bson.M{"Name": categoria},
-			bson.M{"$inc": bson.M{"Spectators": -1}})
-		if err != nil {
-			if err == mongo.ErrNoDocuments {
-				_, err = categoriaCollection.InsertOne(ctx, bson.M{
-					"Name":       categoria,
-					"Img":        "",
-					"Spectators": 1,
-					"Tags":       []string{},
-				})
-				if err != nil {
-					return err
-				}
-			} else {
-				return err
-			}
-		}
-	} else {
-		err = r.redisClient.SAdd(ctx, activeUsersKey, nameUser).Err()
-		if err != nil {
-			return err
-		}
-
-		_, err = streamCollection.UpdateOne(ctx,
-			bson.M{"_id": roomIDObj},
-			bson.M{"$inc": bson.M{"ViewerCount": 1}})
-		if err != nil {
-			return err
-		}
-
-		var updatedStream domain.Stream
-		err = streamCollection.FindOne(ctx, bson.M{"_id": roomIDObj}).Decode(&updatedStream)
-		if err != nil {
-			return err
-		}
-		categoria := updatedStream.StreamCategory
-
-		_, err = categoriaCollection.UpdateOne(ctx,
-			bson.M{"Name": categoria},
-			bson.M{"$inc": bson.M{"Spectators": 1}})
-		if err != nil {
-			if err == mongo.ErrNoDocuments {
-				_, err = categoriaCollection.InsertOne(ctx, bson.M{
-					"Name":       categoria,
-					"Img":        "",
-					"Spectators": 1,
-					"Tags":       []string{},
-				})
-				if err != nil {
-					return err
-				}
-			} else {
-				return err
-			}
-		}
+	// Agregar al usuario como activo globalmente si no lo estaba
+	err = r.redisClient.SAdd(ctx, activeUsersKey, nameUser).Err()
+	if err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func (r *PubSubService) updateViewerCount(ctx context.Context, session mongo.Session, roomID primitive.ObjectID, delta int) (int64, error) {
+	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
+	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
+
+	// Actualizar contador de espectadores para la sala
+	result, err := streamCollection.UpdateOne(ctx,
+		bson.M{"_id": roomID},
+		bson.M{"$inc": bson.M{"ViewerCount": delta}})
+	if err != nil {
+		return 0, err
+	}
+
+	// Obtener la categoría de la sala
+	var updatedStream domain.Stream
+	err = streamCollection.FindOne(ctx, bson.M{"_id": roomID}).Decode(&updatedStream)
+	if err != nil {
+		return 0, err
+	}
+	categoria := updatedStream.StreamCategory
+
+	// Actualizar contador de espectadores para la categoría
+	_, err = categoriaCollection.UpdateOne(ctx,
+		bson.M{"Name": categoria},
+		bson.M{"$inc": bson.M{"Spectators": delta}})
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			_, err = categoriaCollection.InsertOne(ctx, bson.M{
+				"Name":       categoria,
+				"Img":        "",
+				"Spectators": delta,
+				"Tags":       []string{},
+			})
+			if err != nil {
+				return 0, err
+			}
+		} else {
+			return 0, err
+		}
+	}
+
+	return result.ModifiedCount, nil
 }
 
 // uso general sobre informacion de un usuario en una sala
