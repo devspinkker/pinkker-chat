@@ -66,16 +66,16 @@ func (h *ChatHandler) DeleteMessage(c *fiber.Ctx) error {
 			"message": "StatusInternalServerError",
 		})
 	}
-	Moderator, errGetUserInfo := h.chatService.GetUserInfo(IdUserTokenP, NameUser, verified)
+	infoUserAuth, errGetUserInfo := h.chatService.GetUserInfoStruct(IdUserTokenP, NameUser, verified)
 
 	if errGetUserInfo != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"data": "StatusInternalServerError",
 		})
 	}
-	if !Moderator {
+	if !infoUserAuth.Moderator || !infoUserAuth.StreamerChannelOwner {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"data": "not a moderator",
+			"data": "action not authorized",
 		})
 	}
 
