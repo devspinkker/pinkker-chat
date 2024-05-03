@@ -42,7 +42,13 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 			"message": "StatusInternalServerError",
 		})
 	}
-	errPublishMessageInRoom := h.chatService.PublishMessageInRoom(room, req.Message, NameUser, verified)
+	RessTo, errRessTo := primitive.ObjectIDFromHex(req.RessTo)
+	if errRessTo != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "StatusInternalServerError",
+		})
+	}
+	errPublishMessageInRoom := h.chatService.PublishMessageInRoom(room, req.Message, RessTo, NameUser, verified)
 	if errPublishMessageInRoom != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"data": errPublishMessageInRoom.Error(),
@@ -73,7 +79,7 @@ func (h *ChatHandler) DeleteMessage(c *fiber.Ctx) error {
 			"data": "StatusInternalServerError",
 		})
 	}
-	if !infoUserAuth.Moderator || !infoUserAuth.StreamerChannelOwner {
+	if !infoUserAuth.Moderator && !infoUserAuth.StreamerChannelOwner {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"data": "action not authorized",
 		})
@@ -99,7 +105,117 @@ func (h *ChatHandler) DeleteMessage(c *fiber.Ctx) error {
 		"message": "Message deleted successfully",
 	})
 }
+func (h *ChatHandler) AnclarMessage(c *fiber.Ctx) error {
+	roomID := c.Params("roomID")
+	messageID := c.Params("messageID")
+	verified := c.Context().UserValue("verified").(bool)
+	NameUser := c.Context().UserValue("nameUser").(string)
 
+	IdUserTokenP, errinObjectID := primitive.ObjectIDFromHex(roomID)
+	if errinObjectID != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "StatusInternalServerError",
+		})
+	}
+	infoUserAuth, errGetUserInfo := h.chatService.GetUserInfoStruct(IdUserTokenP, NameUser, verified)
+
+	if errGetUserInfo != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"data": "StatusInternalServerError",
+		})
+	}
+	if !infoUserAuth.Moderator && !infoUserAuth.StreamerChannelOwner {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"data": "action not authorized",
+		})
+	}
+
+	err := h.NotifyMessageAnclarToRoomClients(roomID, messageID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error notifying message deletion",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Message deleted successfully",
+	})
+}
+func (h *ChatHandler) DesanclarMessage(c *fiber.Ctx) error {
+	roomID := c.Params("roomID")
+	messageID := c.Params("messageID")
+	verified := c.Context().UserValue("verified").(bool)
+	NameUser := c.Context().UserValue("nameUser").(string)
+
+	IdUserTokenP, errinObjectID := primitive.ObjectIDFromHex(roomID)
+	if errinObjectID != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "StatusInternalServerError",
+		})
+	}
+	infoUserAuth, errGetUserInfo := h.chatService.GetUserInfoStruct(IdUserTokenP, NameUser, verified)
+
+	if errGetUserInfo != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"data": "StatusInternalServerError",
+		})
+	}
+	if !infoUserAuth.Moderator && !infoUserAuth.StreamerChannelOwner {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"data": "action not authorized",
+		})
+	}
+
+	err := h.NotifyMessageDesanclarToRoomClients(roomID, messageID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error notifying message deletion",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Message deleted successfully",
+	})
+}
+func (h *ChatHandler) NotifyMessageAnclarToRoomClients(roomID, messageID string) error {
+	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
+	if err != nil {
+		return err
+	}
+	notification := map[string]interface{}{
+		"action":     "message_Anclar",
+		"message_id": messageID,
+	}
+
+	for _, client := range clients {
+		err = client.WriteJSON(notification)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (h *ChatHandler) NotifyMessageDesanclarToRoomClients(roomID, messageID string) error {
+	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
+	if err != nil {
+		return err
+	}
+	notification := map[string]interface{}{
+		"action":     "message_Desanclar",
+		"message_id": messageID,
+	}
+
+	for _, client := range clients {
+		err = client.WriteJSON(notification)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 func (h *ChatHandler) NotifyMessageDeletedToRoomClients(roomID, messageID string) error {
 	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
 	if err != nil {
