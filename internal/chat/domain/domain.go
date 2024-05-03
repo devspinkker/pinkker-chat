@@ -59,6 +59,7 @@ type ChatMessage struct {
 	EmblemasChat         map[string]string  `json:"EmotesChat"`
 	StreamerChannelOwner bool               `json:"StreamerChannelOwner"`
 	Id                   primitive.ObjectID `json:"Id"`
+	RessTo               primitive.ObjectID `json:"RessTo"`
 }
 type Datacommands struct {
 	ID       primitive.ObjectID `json:"id" bson:"_id,omitempty"`
@@ -104,6 +105,7 @@ func (a *ModeratorAction) ModeratorActionValidate() error {
 
 type MessagesTheSendMessagesRoom struct {
 	Message string `json:"message"`
+	RessTo  string `json:"RessTo"`
 }
 
 func (Message *MessagesTheSendMessagesRoom) MessagesTheSendMessagesRoomValidate() error {
