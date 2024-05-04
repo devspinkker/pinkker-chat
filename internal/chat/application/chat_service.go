@@ -394,8 +394,8 @@ func (s *ChatService) UserConnectedStream(roomID, nameUser string) error {
 	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser)
 	return err
 }
-func (s *ChatService) SaveMessageAnclarRedis(roomID, MessageID, NameUser, Message string) error {
-	err := s.roomRepository.SaveMessageAnclarRedis(roomID, MessageID, NameUser, Message)
+func (s *ChatService) SaveMessageAnclarRedis(roomID string, anclarMessage domain.AnclarMessageData) error {
+	err := s.roomRepository.SaveMessageAnclarRedis(roomID, anclarMessage)
 	return err
 }
 func (s *ChatService) GetAncladoMessageFromRedis(roomID string) (map[string]interface{}, error) {

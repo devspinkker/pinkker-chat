@@ -109,11 +109,23 @@ type MessagesTheSendMessagesRoom struct {
 	ResNameUser string `json:"ResNameUser"`
 	ResMessage  string `json:"ResMessage"`
 }
-
 type AnclarMessageData struct {
-	MessageID string `json:"messageID"`
-	NameUser  string `json:"nameUser"`
-	Message   string `json:"message"`
+	NameUser             string      `json:"nameUser"`
+	Color                string      `json:"Color"`
+	EmotesChat           string      `json:"EmotesChat"`
+	Moderator            string      `json:"Moderator"`
+	Verified             string      `json:"Verified"`
+	Vip                  bool        `json:"Vip"`
+	ID                   string      `json:"Id"`
+	ResMessage           string      `json:"ResMessage"`
+	ResNameUser          string      `json:"ResNameUser"`
+	StreamerChannelOwner bool        `json:"StreamerChannelOwner"`
+	SubscriptionInfo     interface{} `json:"SubscriptionInfo"`
+	Baneado              bool        `json:"baneado"`
+	Message              string      `json:"message"`
+	IsModerator          bool        `json:"moderator"`
+	Subscription         string      `json:"subscription"`
+	Timeout              string      `json:"timeOut"`
 }
 
 func (Message *MessagesTheSendMessagesRoom) MessagesTheSendMessagesRoomValidate() error {
