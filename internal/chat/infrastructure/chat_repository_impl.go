@@ -874,6 +874,56 @@ func (r *PubSubService) UpdataCommands(id primitive.ObjectID, newCommands map[st
 	_, UpdateOneerr := Collection.UpdateOne(context.Background(), filter, update)
 	return UpdateOneerr
 }
+
+func (r *PubSubService) SaveMessageAnclarRedis(roomID, MessageID, NameUser, Message string) error {
+	ctx := context.Background()
+	client := r.redisClient
+
+	data := map[string]interface{}{
+		"MessageID": MessageID,
+		"NameUser":  NameUser,
+		"Message":   Message,
+	}
+
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	key := "Anclado:" + roomID
+
+	_, err = client.Do(ctx, "SET", key, jsonData).Result()
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Do(ctx, "EXPIRE", key, int64(2*60)).Result()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *PubSubService) GetAncladoMessageFromRedis(roomID string) (map[string]interface{}, error) {
+	ctx := context.Background()
+	client := r.redisClient
+
+	key := "Anclado:" + roomID
+
+	jsonData, err := client.Get(ctx, key).Bytes()
+	if err != nil {
+		return nil, err
+	}
+
+	var data map[string]interface{}
+	err = json.Unmarshal(jsonData, &data)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
 func (r *PubSubService) GetInfoUserInRoom(nameUser string, GetInfoUserInRoom primitive.ObjectID) (domain.InfoUser, error) {
 	database := r.MongoClient.Database("PINKKER-BACKEND")
 	var InfoUser domain.InfoUser
