@@ -47,7 +47,7 @@ func (s *ChatService) GetWebSocketClientsInRoom(roomID string) ([]*websocket.Con
 }
 
 // chat messages
-func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message string, RessTo primitive.ObjectID, nameUser string, verified bool) error {
+func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, ResNameUser, ResMsj, nameUser string, verified bool) error {
 
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, nameUser, verified)
 	if err != nil {
@@ -100,7 +100,8 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message st
 		Moderator:            userInfo.Moderator,
 		EmblemasChat:         userInfo.EmblemasChat,
 		StreamerChannelOwner: userInfo.StreamerChannelOwner,
-		RessTo:               RessTo,
+		ResNameUser:          ResNameUser,
+		ResMessage:           ResMsj,
 		Id:                   primitive.NewObjectID(),
 	}
 
