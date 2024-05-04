@@ -7,6 +7,7 @@ import (
 	"PINKKER-CHAT/pkg/jwt"
 	"PINKKER-CHAT/pkg/middleware"
 	"PINKKER-CHAT/pkg/utils"
+	"encoding/json"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -112,13 +113,22 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	// Agregar un nuevo punto final para eliminar mensajes
 	app.Delete("/chatStreaming/:roomID/messages/delete/:messageID", middleware.UseExtractor(), chatHandler.DeleteMessage)
 
-	app.Delete("/chatStreaming/:roomID/messages/anclar/:messageID", middleware.UseExtractor(), chatHandler.AnclarMessage)
-	app.Delete("/chatStreaming/:roomID/messages/desanclar/:messageID", middleware.UseExtractor(), chatHandler.DesanclarMessage)
+	app.Post("/chatStreaming/:roomID/messages/anclar", middleware.UseExtractor(), chatHandler.AnclarMessage)
+	app.Get("/chatStreaming/:roomID/messages/desanclar/:messageID", middleware.UseExtractor(), chatHandler.DesanclarMessage)
 	app.Get("/ws/notifications/notifications/actionMessages/:roomID", websocket.New(func(c *websocket.Conn) {
 		roomID := c.Params("roomID")
 		chatService := utils.NewChatService()
 		client := &utils.Client{Connection: c}
 		chatService.AddClientToRoom(roomID, client)
+
+		ancladoMessage, err := chatHandler.GetAncladoMessageFromRedis(roomID)
+		if err == nil && ancladoMessage != nil {
+			ancladoMessage["action"] = "message_Anclar"
+			jsonData, err := json.Marshal(ancladoMessage)
+			if err == nil {
+				c.WriteMessage(websocket.TextMessage, jsonData)
+			}
+		}
 
 		defer func() {
 			chatService.RemoveClientFromRoom(roomID, client)

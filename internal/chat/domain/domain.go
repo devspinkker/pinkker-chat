@@ -110,6 +110,12 @@ type MessagesTheSendMessagesRoom struct {
 	ResMessage  string `json:"ResMessage"`
 }
 
+type AnclarMessageData struct {
+	MessageID string `json:"messageID"`
+	NameUser  string `json:"nameUser"`
+	Message   string `json:"message"`
+}
+
 func (Message *MessagesTheSendMessagesRoom) MessagesTheSendMessagesRoomValidate() error {
 
 	if len(Message.Message) >= 300 || len(Message.Message) <= 0 {

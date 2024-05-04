@@ -394,6 +394,14 @@ func (s *ChatService) UserConnectedStream(roomID, nameUser string) error {
 	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser)
 	return err
 }
+func (s *ChatService) SaveMessageAnclarRedis(roomID, MessageID, NameUser, Message string) error {
+	err := s.roomRepository.SaveMessageAnclarRedis(roomID, MessageID, NameUser, Message)
+	return err
+}
+func (s *ChatService) GetAncladoMessageFromRedis(roomID string) (map[string]interface{}, error) {
+	data, err := s.roomRepository.GetAncladoMessageFromRedis(roomID)
+	return data, err
+}
 func (s *ChatService) GetInfoUserInRoom(nameUser string, GetInfoUserInRoom primitive.ObjectID) (domain.InfoUser, error) {
 
 	InfoUser, UpdataCommandsErr := s.roomRepository.GetInfoUserInRoom(nameUser, GetInfoUserInRoom)

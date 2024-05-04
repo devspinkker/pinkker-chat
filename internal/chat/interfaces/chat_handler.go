@@ -101,10 +101,20 @@ func (h *ChatHandler) DeleteMessage(c *fiber.Ctx) error {
 }
 func (h *ChatHandler) AnclarMessage(c *fiber.Ctx) error {
 	roomID := c.Params("roomID")
-	messageID := c.Params("messageID")
+	var data domain.AnclarMessageData
+
+	// Decodificar los datos del cuerpo de la solicitud
+	if err := c.BodyParser(&data); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request data",
+		})
+	}
+
+	// Extraer los datos del usuario del contexto
 	verified := c.Context().UserValue("verified").(bool)
 	NameUser := c.Context().UserValue("nameUser").(string)
 
+	// Validar si el usuario tiene permisos
 	IdUserTokenP, errinObjectID := primitive.ObjectIDFromHex(roomID)
 	if errinObjectID != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -112,7 +122,6 @@ func (h *ChatHandler) AnclarMessage(c *fiber.Ctx) error {
 		})
 	}
 	infoUserAuth, errGetUserInfo := h.chatService.GetUserInfoStruct(IdUserTokenP, NameUser, verified)
-
 	if errGetUserInfo != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"data": "StatusInternalServerError",
@@ -124,15 +133,16 @@ func (h *ChatHandler) AnclarMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	err := h.NotifyMessageAnclarToRoomClients(roomID, messageID)
+	// Notificar a los clientes sobre el mensaje anclado
+	err := h.NotifyMessageAnclarToRoomClients(roomID, data.MessageID, data.NameUser, data.Message)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Error notifying message deletion",
+			"error": "Error notifying message anchoring",
 		})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Message deleted successfully",
+		"message": "Message anchored successfully",
 	})
 }
 func (h *ChatHandler) DesanclarMessage(c *fiber.Ctx) error {
@@ -171,16 +181,21 @@ func (h *ChatHandler) DesanclarMessage(c *fiber.Ctx) error {
 		"message": "Message deleted successfully",
 	})
 }
-func (h *ChatHandler) NotifyMessageAnclarToRoomClients(roomID, messageID string) error {
+func (h *ChatHandler) NotifyMessageAnclarToRoomClients(roomID, MessageID, NameUser, Message string) error {
 	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
 	if err != nil {
 		return err
 	}
 	notification := map[string]interface{}{
-		"action":     "message_Anclar",
-		"message_id": messageID,
+		"action":    "message_Anclar",
+		"messageID": MessageID,
+		"nameUser":  MessageID,
+		"message":   Message,
 	}
-
+	err = h.chatService.SaveMessageAnclarRedis(roomID, MessageID, NameUser, Message)
+	if err != nil {
+		return err
+	}
 	for _, client := range clients {
 		err = client.WriteJSON(notification)
 		if err != nil {
@@ -191,6 +206,9 @@ func (h *ChatHandler) NotifyMessageAnclarToRoomClients(roomID, messageID string)
 	return nil
 }
 
+func (h *ChatHandler) GetAncladoMessageFromRedis(roomID string) (map[string]interface{}, error) {
+	return h.chatService.GetAncladoMessageFromRedis(roomID)
+}
 func (h *ChatHandler) NotifyMessageDesanclarToRoomClients(roomID, messageID string) error {
 	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
 	if err != nil {
