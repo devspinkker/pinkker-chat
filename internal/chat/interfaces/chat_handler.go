@@ -133,8 +133,7 @@ func (h *ChatHandler) AnclarMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	// Notificar a los clientes sobre el mensaje anclado
-	err := h.NotifyMessageAnclarToRoomClients(roomID, data.MessageID, data.NameUser, data.Message)
+	err := h.NotifyMessageAnclarToRoomClients(roomID, data)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Error notifying message anchoring",
@@ -181,18 +180,16 @@ func (h *ChatHandler) DesanclarMessage(c *fiber.Ctx) error {
 		"message": "Message deleted successfully",
 	})
 }
-func (h *ChatHandler) NotifyMessageAnclarToRoomClients(roomID, MessageID, NameUser, Message string) error {
+func (h *ChatHandler) NotifyMessageAnclarToRoomClients(roomID string, anclarMessage domain.AnclarMessageData) error {
 	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
 	if err != nil {
 		return err
 	}
 	notification := map[string]interface{}{
-		"action":    "message_Anclar",
-		"messageID": MessageID,
-		"nameUser":  MessageID,
-		"message":   Message,
+		"action":  "message_Anclar",
+		"message": anclarMessage,
 	}
-	err = h.chatService.SaveMessageAnclarRedis(roomID, MessageID, NameUser, Message)
+	err = h.chatService.SaveMessageAnclarRedis(roomID, anclarMessage)
 	if err != nil {
 		return err
 	}

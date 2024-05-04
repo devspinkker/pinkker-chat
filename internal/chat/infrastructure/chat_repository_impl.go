@@ -875,17 +875,11 @@ func (r *PubSubService) UpdataCommands(id primitive.ObjectID, newCommands map[st
 	return UpdateOneerr
 }
 
-func (r *PubSubService) SaveMessageAnclarRedis(roomID, MessageID, NameUser, Message string) error {
+func (r *PubSubService) SaveMessageAnclarRedis(roomID string, anclarMessage domain.AnclarMessageData) error {
 	ctx := context.Background()
 	client := r.redisClient
 
-	data := map[string]interface{}{
-		"MessageID": MessageID,
-		"NameUser":  NameUser,
-		"Message":   Message,
-	}
-
-	jsonData, err := json.Marshal(data)
+	jsonData, err := json.Marshal(anclarMessage)
 	if err != nil {
 		return err
 	}

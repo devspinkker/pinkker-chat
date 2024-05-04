@@ -123,8 +123,12 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 		ancladoMessage, err := chatHandler.GetAncladoMessageFromRedis(roomID)
 		if err == nil && ancladoMessage != nil {
-			ancladoMessage["action"] = "message_Anclar"
-			jsonData, err := json.Marshal(ancladoMessage)
+			notification := map[string]interface{}{
+				"action":  "message_Anclar",
+				"message": ancladoMessage,
+			}
+
+			jsonData, err := json.Marshal(notification)
 			if err == nil {
 				c.WriteMessage(websocket.TextMessage, jsonData)
 			}
