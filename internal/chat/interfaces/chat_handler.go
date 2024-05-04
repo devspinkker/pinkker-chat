@@ -42,13 +42,7 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 			"message": "StatusInternalServerError",
 		})
 	}
-	RessTo, errRessTo := primitive.ObjectIDFromHex(req.RessTo)
-	if errRessTo != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": "StatusInternalServerError",
-		})
-	}
-	errPublishMessageInRoom := h.chatService.PublishMessageInRoom(room, req.Message, RessTo, NameUser, verified)
+	errPublishMessageInRoom := h.chatService.PublishMessageInRoom(room, req.Message, req.ResNameUser, req.ResMessage, NameUser, verified)
 	if errPublishMessageInRoom != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"data": errPublishMessageInRoom.Error(),
