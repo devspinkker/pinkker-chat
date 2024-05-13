@@ -60,7 +60,22 @@ func (r *PubSubService) RedisGetModSlowModeStream(Room primitive.ObjectID) (int,
 	return modSlowMode, nil
 }
 
-func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUser string) error {
+func (r *PubSubService) UserExists(ctx context.Context, nameUser string) (bool, error) {
+	userCollection := r.MongoClient.Database("PINKKER-BACKEND").Collection("Users")
+
+	var result domain.User
+	err := userCollection.FindOne(ctx, bson.M{"NameUser": nameUser}).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return false, nil
+		}
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUser string, action string) error {
 	session, err := r.MongoClient.StartSession()
 	if err != nil {
 		return err
@@ -72,7 +87,17 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 		return err
 	}
 
-	err = r.performUserTransaction(ctx, session, roomID, nameUser)
+	// Verificar si el usuario existe
+	exists, err := r.UserExists(ctx, nameUser)
+	if err != nil {
+		session.AbortTransaction(ctx)
+		return err
+	}
+	if !exists {
+		return errors.New("user does not exist") // Usuario no encontrado
+	}
+
+	err = r.performUserTransaction(ctx, session, roomID, nameUser, action)
 
 	if err != nil {
 		session.AbortTransaction(ctx)
@@ -87,7 +112,7 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 	return nil
 }
 
-func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string) error {
+func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string, action string) error {
 	activeUsersKey := "ActiveUsers"
 	activeUserRoomsKey := "ActiveUserRooms:" + nameUser // Clave para las salas activas del usuario
 
@@ -97,8 +122,18 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 		return err
 	}
 
-	// Si el usuario ya está activo en la sala, lo eliminamos
-	if isActive {
+	// Si la acción es conectar y el usuario ya está activo, no hacer nada
+	if action == "connect" && isActive {
+		return nil
+	}
+
+	// Si la acción es desconectar y el usuario ya está desconectado, no hacer nada
+	if action == "disconnect" && !isActive {
+		return nil
+	}
+
+	// Si la acción es desconectar y el usuario está activo, desconectarlo
+	if action == "disconnect" && isActive {
 		_, err := r.redisClient.SRem(ctx, activeUserRoomsKey, roomID).Result()
 		if err != nil {
 			return err
@@ -118,27 +153,30 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 		return nil
 	}
 
-	// Agregar al usuario como activo en la nueva sala
-	err = r.redisClient.SAdd(ctx, activeUserRoomsKey, roomID).Err()
-	if err != nil {
-		return err
-	}
+	// Si la acción es conectar y el usuario está desconectado, conectarlo
+	if action == "connect" && !isActive {
+		// Agregar al usuario como activo en la nueva sala
+		err = r.redisClient.SAdd(ctx, activeUserRoomsKey, roomID).Err()
+		if err != nil {
+			return err
+		}
 
-	// Incrementar el contador de espectadores para la sala
-	roomIDObj, err := primitive.ObjectIDFromHex(roomID)
-	if err != nil {
-		return err
-	}
+		// Incrementar el contador de espectadores para la sala
+		roomIDObj, err := primitive.ObjectIDFromHex(roomID)
+		if err != nil {
+			return err
+		}
 
-	_, err = r.updateViewerCount(ctx, session, roomIDObj, 1)
-	if err != nil {
-		return err
-	}
+		_, err = r.updateViewerCount(ctx, session, roomIDObj, 1)
+		if err != nil {
+			return err
+		}
 
-	// Agregar al usuario como activo globalmente si no lo estaba
-	err = r.redisClient.SAdd(ctx, activeUsersKey, nameUser).Err()
-	if err != nil {
-		return err
+		// Agregar al usuario como activo globalmente si no lo estaba
+		err = r.redisClient.SAdd(ctx, activeUsersKey, nameUser).Err()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

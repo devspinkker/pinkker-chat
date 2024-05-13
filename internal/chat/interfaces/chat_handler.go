@@ -245,9 +245,9 @@ func (h *ChatHandler) NotifyMessageDeletedToRoomClients(roomID, messageID string
 	return nil
 }
 
-func (h *ChatHandler) UserConnectedStream(roomID, nameUser string) error {
+func (h *ChatHandler) UserConnectedStream(roomID, nameUser, action string) error {
 
-	err := h.chatService.UserConnectedStream(roomID, nameUser)
+	err := h.chatService.UserConnectedStream(roomID, nameUser, action)
 
 	return err
 }
