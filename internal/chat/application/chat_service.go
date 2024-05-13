@@ -389,9 +389,9 @@ func (s *ChatService) UpdataCommands(roomID primitive.ObjectID, newCommands map[
 	UpdataCommandsErr := s.roomRepository.UpdataCommands(roomID, newCommands)
 	return UpdataCommandsErr
 }
-func (s *ChatService) UserConnectedStream(roomID, nameUser string) error {
+func (s *ChatService) UserConnectedStream(roomID, nameUser, action string) error {
 	ctx := context.TODO()
-	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser)
+	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser, action)
 	return err
 }
 func (s *ChatService) SaveMessageAnclarRedis(roomID string, anclarMessage domain.AnclarMessageData) error {
