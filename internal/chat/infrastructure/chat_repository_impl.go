@@ -121,6 +121,8 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 	if err != nil {
 		return err
 	}
+	fmt.Println(action)
+	fmt.Println(isActive)
 
 	// Si la acción es conectar y el usuario ya está activo, no hacer nada
 	if action == "connect" && isActive {
@@ -602,7 +604,15 @@ func (s *PubSubService) ReceiveMessageFromRoom(roomID string) (string, error) {
 		return msg.Payload, nil
 	}
 }
+func (p *PubSubService) FindStreamByStreamer(NameUser string) (domain.Stream, error) {
 
+	Collection := p.MongoClient.Database("PINKKER-BACKEND").Collection("Streams")
+	filter := bson.M{"Streamer": NameUser}
+
+	var Stream domain.Stream
+	err := Collection.FindOne(context.Background(), filter).Decode(&Stream)
+	return Stream, err
+}
 func (p *PubSubService) PublishCommandInTheRoom(roomID primitive.ObjectID, commandName string) error {
 
 	Collection := p.MongoClient.Database("PINKKER-BACKEND").Collection("CommandsInChat")

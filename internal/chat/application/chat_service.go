@@ -45,6 +45,11 @@ func (s *ChatService) GetWebSocketClientsInRoom(roomID string) ([]*websocket.Con
 
 	return clients, err
 }
+func (s *ChatService) FindStreamByStreamer(nameUser string) (domain.Stream, error) {
+	stream, err := s.roomRepository.FindStreamByStreamer(nameUser)
+
+	return stream, err
+}
 
 // chat messages
 func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, ResNameUser, ResMsj, nameUser string, verified bool) error {

@@ -127,6 +127,9 @@ type AnclarMessageData struct {
 	Subscription         string      `json:"subscription"`
 	Timeout              string      `json:"timeOut"`
 }
+type Host struct {
+	NameUser string `json:"nameUser"`
+}
 
 func (Message *MessagesTheSendMessagesRoom) MessagesTheSendMessagesRoomValidate() error {
 
