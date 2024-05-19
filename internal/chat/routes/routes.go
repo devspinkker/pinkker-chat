@@ -112,9 +112,10 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 	// Agregar un nuevo punto final para eliminar mensajes
 	app.Delete("/chatStreaming/:roomID/messages/delete/:messageID", middleware.UseExtractor(), chatHandler.DeleteMessage)
-
 	app.Post("/chatStreaming/:roomID/messages/anclar", middleware.UseExtractor(), chatHandler.AnclarMessage)
 	app.Get("/chatStreaming/:roomID/messages/desanclar/:messageID", middleware.UseExtractor(), chatHandler.DesanclarMessage)
+	app.Post("/chatStreaming/:roomID/messages/Host", middleware.UseExtractor(), chatHandler.Host)
+
 	app.Get("/ws/notifications/notifications/actionMessages/:roomID", websocket.New(func(c *websocket.Conn) {
 		roomID := c.Params("roomID")
 		chatService := utils.NewChatService()

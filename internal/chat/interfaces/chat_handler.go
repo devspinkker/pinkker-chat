@@ -144,6 +144,7 @@ func (h *ChatHandler) AnclarMessage(c *fiber.Ctx) error {
 		"message": "Message anchored successfully",
 	})
 }
+
 func (h *ChatHandler) DesanclarMessage(c *fiber.Ctx) error {
 	roomID := c.Params("roomID")
 	messageID := c.Params("messageID")
@@ -180,6 +181,90 @@ func (h *ChatHandler) DesanclarMessage(c *fiber.Ctx) error {
 		"message": "Message deleted successfully",
 	})
 }
+
+func (h *ChatHandler) Host(c *fiber.Ctx) error {
+	roomID := c.Params("roomID")
+	var data domain.Host
+
+	// Decodificar los datos del cuerpo de la solicitud
+	if err := c.BodyParser(&data); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request data",
+		})
+	}
+
+	// Extraer los datos del usuario del contexto
+	verified := c.Context().UserValue("verified").(bool)
+	NameUser := c.Context().UserValue("nameUser").(string)
+
+	// Validar si el usuario tiene permisos
+	IdUserTokenP, errinObjectID := primitive.ObjectIDFromHex(roomID)
+	if errinObjectID != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "StatusInternalServerError",
+		})
+	}
+	infoUserAuth, errGetUserInfo := h.chatService.GetUserInfoStruct(IdUserTokenP, NameUser, verified)
+	if errGetUserInfo != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"data": "StatusInternalServerError",
+		})
+	}
+	if !infoUserAuth.StreamerChannelOwner {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"data": "action not authorized",
+		})
+	}
+
+	err := h.NotifyHost(roomID, NameUser, data)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error notifying message anchoring",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Message anchored successfully",
+	})
+}
+func (h *ChatHandler) NotifyHost(roomID string, byHost string, Host domain.Host) error {
+	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
+	if err != nil {
+		return err
+	}
+	notification := map[string]interface{}{
+		"action": "host_action",
+		"hostA":  Host,
+	}
+	for _, client := range clients {
+		err = client.WriteJSON(notification)
+		if err != nil {
+			return err
+		}
+	}
+	stream, err := h.chatService.FindStreamByStreamer(Host.NameUser)
+	if err != nil {
+		return err
+	}
+	ClientStream, err := h.chatService.GetWebSocketClientsInRoom(stream.ID.Hex())
+	if err != nil {
+		return err
+	}
+	notification = map[string]interface{}{
+		"action":     "Host",
+		"hostby":     byHost,
+		"spectators": stream.ViewerCount,
+	}
+	for _, client := range ClientStream {
+		err = client.WriteJSON(notification)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (h *ChatHandler) NotifyMessageAnclarToRoomClients(roomID string, anclarMessage domain.AnclarMessageData) error {
 	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
 	if err != nil {
