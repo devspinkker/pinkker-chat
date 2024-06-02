@@ -79,10 +79,10 @@ type Action struct {
 
 func (a *Action) Validate() error {
 	if len(a.Action) < 3 || len(a.Action) >= 12 {
-		return errors.New("La longitud de 'action' debe ser mayor o igual a 3 caracteres y menor a 12")
+		return errors.New("la longitud de 'action' debe ser mayor o igual a 3 caracteres y menor a 12")
 	}
 	if len(a.ActionAgainst) < 3 || len(a.ActionAgainst) >= 15 {
-		return errors.New("La longitud de 'actionAgainst' debe ser mayor o igual a 3 caracteres y menor a 12")
+		return errors.New("la longitud de 'actionAgainst' debe ser mayor o igual a 3 caracteres y menor a 12")
 	}
 	if a.Action == "TimeOut" {
 		if a.TimeOut != 2 {
@@ -134,7 +134,7 @@ type Host struct {
 func (Message *MessagesTheSendMessagesRoom) MessagesTheSendMessagesRoomValidate() error {
 
 	if len(Message.Message) >= 300 || len(Message.Message) <= 0 {
-		return errors.New("La longitud de 'action' debe ser mayor o igual a 3 caracteres y menor a 12")
+		return errors.New("la longitud de 'action' debe ser mayor o igual a 3 caracteres y menor a 12")
 	}
 	return nil
 }
@@ -170,25 +170,27 @@ func (a *CommandsUpdata) CommandsUpdataValidata() error {
 }
 
 type Stream struct {
-	ID                 primitive.ObjectID `json:"id" bson:"_id,omitempty"`
-	StreamerID         primitive.ObjectID `json:"streamerId" bson:"StreamerID"`
-	Streamer           string             `json:"streamer" bson:"Streamer"`
-	StreamerAvatar     string             `json:"streamer_avatar" bson:"StreamerAvatar,omitempty"`
-	ViewerCount        int                `json:"ViewerCount"  bson:"ViewerCount,default:0"`
-	Online             bool               `json:"online" bson:"Online,default:false"`
-	StreamTitle        string             `json:"stream_title" bson:"StreamTitle"`
-	StreamCategory     string             `json:"stream_category" bson:"StreamCategory"`
-	ImageCategorie     string             `json:"ImageCategorie" bson:"ImageCategorie"`
-	StreamNotification string             `json:"stream_notification" bson:"StreamNotification"`
-	StreamTag          []string           `json:"stream_tag"  bson:"StreamTag,default:['Español']"`
-	StreamLikes        []string           `json:"stream_likes" bson:"StreamLikes"`
-	StreamIdiom        string             `json:"stream_idiom" default:"Español" bson:"StreamIdiom,default:'Español'"`
-	StreamThumbnail    string             `json:"stream_thumbnail" bson:"StreamThumbnail"`
-	StartDate          time.Time          `json:"start_date" bson:"StartDate"`
-	Timestamp          time.Time          `json:"Timestamp" bson:"Timestamp"`
-	EmotesChat         map[string]string  `json:"EmotesChat" bson:"EmotesChat"`
-	ModChat            string             `json:"ModChat" bson:"ModChat"`
-	ModSlowMode        int                `json:"ModSlowMode" bson:"ModSlowMode"`
+	ID                     primitive.ObjectID `json:"id" bson:"_id,omitempty"`
+	StreamerID             primitive.ObjectID `json:"streamerId" bson:"StreamerID"`
+	Streamer               string             `json:"streamer" bson:"Streamer"`
+	StreamerAvatar         string             `json:"streamer_avatar" bson:"StreamerAvatar,omitempty"`
+	ViewerCount            int                `json:"ViewerCount"  bson:"ViewerCount,default:0"`
+	Online                 bool               `json:"online" bson:"Online,default:false"`
+	StreamTitle            string             `json:"stream_title" bson:"StreamTitle"`
+	StreamCategory         string             `json:"stream_category" bson:"StreamCategory"`
+	ImageCategorie         string             `json:"ImageCategorie" bson:"ImageCategorie"`
+	StreamNotification     string             `json:"stream_notification" bson:"StreamNotification"`
+	StreamTag              []string           `json:"stream_tag"  bson:"StreamTag,default:['Español']"`
+	StreamLikes            []string           `json:"stream_likes" bson:"StreamLikes"`
+	StreamIdiom            string             `json:"stream_idiom" default:"Español" bson:"StreamIdiom,default:'Español'"`
+	StreamThumbnail        string             `json:"stream_thumbnail" bson:"StreamThumbnail"`
+	StartDate              time.Time          `json:"start_date" bson:"StartDate"`
+	Timestamp              time.Time          `json:"Timestamp" bson:"Timestamp"`
+	EmotesChat             map[string]string  `json:"EmotesChat" bson:"EmotesChat"`
+	ModChat                string             `json:"ModChat" bson:"ModChat"`
+	ModSlowMode            int                `json:"ModSlowMode" bson:"ModSlowMode"`
+	Banned                 bool               `json:"Banned" bson:"Banned"`
+	TotalTimeOnlineSeconds int64              `json:"TotalTimeOnlineSeconds" bson:"TotalTimeOnlineSeconds"`
 }
 
 type User struct {
@@ -216,10 +218,10 @@ type User struct {
 	Pixeles           float64                `json:"Pixeles,default:0.0" bson:"Pixeles,default:0.0"`
 	CustomAvatar      bool                   `json:"customAvatar,omitempty" bson:"CustomAvatar"`
 	CountryInfo       map[string]interface{} `json:"countryInfo,omitempty" bson:"CountryInfo"`
-	PinkkerPrime      struct {
+	Partner           struct {
 		Active bool      `json:"active,omitempty" bson:"Active,omitempty"`
 		Date   time.Time `json:"date,omitempty" bson:"Date,omitempty"`
-	} `json:"pinkkerPrime,omitempty" bson:"PinkkerPrime"`
+	} `json:"Partner,omitempty" bson:"Partner"`
 	Suscribers    []string `json:"suscribers,omitempty" bson:"Suscribers"`
 	SocialNetwork struct {
 		Facebook  string `json:"facebook,omitempty" bson:"facebook"`
