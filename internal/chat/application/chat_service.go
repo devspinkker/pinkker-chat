@@ -380,8 +380,8 @@ func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, Nam
 		userInfo.Color = action.Color
 	}
 	if action.Identidad != "" {
-		if action.Identidad == "muted" {
-			action.Identidad = "https://res.cloudinary.com/dcj8krp42/image/upload/v1712283561/categorias/ESTRELLA_PINKKER_ROSA_veeimh.png"
+		if action.Identidad == "mute" {
+			action.Identidad = config.IDENTIDADMUTE()
 		}
 		userInfo.Color = action.Color
 	}
