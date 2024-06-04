@@ -58,6 +58,13 @@ func PARTNER() string {
 	return os.Getenv("PARTNER")
 
 }
+func IDENTIDADMUTE() string {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("godotenv.Load error IDENTIDADMUTE")
+	}
+	return os.Getenv("IDENTIDADMUTE")
+
+}
 func MONGODB_URI() string {
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("godotenv.Load error URI mongo")
