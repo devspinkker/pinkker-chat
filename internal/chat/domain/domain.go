@@ -18,6 +18,7 @@ type UserInfo struct {
 	Baneado              bool
 	TimeOut              time.Time
 	EmblemasChat         map[string]string
+	Identidad            string
 	Following            FollowInfo
 	StreamerChannelOwner bool
 	LastMessage          time.Time
@@ -104,6 +105,11 @@ func (a *ModeratorAction) ModeratorActionValidate() error {
 	return nil
 }
 
+type ActionIdentidadUser struct {
+	Identidad string             `json:"Identidad"`
+	Color     string             `json:"Color"`
+	Room      primitive.ObjectID `json:"room"`
+}
 type MessagesTheSendMessagesRoom struct {
 	Message     string `json:"message"`
 	ResNameUser string `json:"ResNameUser"`

@@ -368,6 +368,30 @@ func (s *ChatService) ModeratorActionTimeOut(action domain.ModeratorAction, veri
 
 	return nil
 }
+func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, NameUser string, verified bool) error {
+	roomID := action.Room
+	userInfo, err := s.roomRepository.GetUserInfo(roomID, NameUser, verified)
+	if err != nil {
+		return err
+	}
+
+	// modificarlo al usuario
+	if action.Color != "" {
+		userInfo.Color = action.Color
+	}
+	if action.Identidad != "" {
+		if action.Identidad == "muted" {
+			action.Identidad = "https://res.cloudinary.com/dcj8krp42/image/upload/v1712283561/categorias/ESTRELLA_PINKKER_ROSA_veeimh.png"
+		}
+		userInfo.Color = action.Color
+	}
+	err = s.roomRepository.UpdataUserInfo(roomID, NameUser, userInfo)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 func (s *ChatService) GetUserInfoStruct(roomID primitive.ObjectID, nameUser string, verified bool) (domain.UserInfo, error) {
 	userInfo, errGetUserInfo := s.roomRepository.GetUserInfo(roomID, nameUser, verified)
 	return userInfo, errGetUserInfo

@@ -255,6 +255,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			"Moderator": "",
 			"Verified":  "",
 		},
+		"Identidad":            "",
 		"Following":            domain.FollowInfo{},
 		"StreamerChannelOwner": streamerChannelOwner,
 		"LastMessage":          time.Now(),
@@ -368,6 +369,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				userInfo.EmblemasChat[key] = value.(string)
 			}
 		}
+		userInfo.Identidad = storedUserFields["Identidad"].(string)
 
 		timeStr := storedUserFields["TimeOut"].(string)
 		timeOut, errtimeOut := time.Parse(time.RFC3339, timeStr)
@@ -383,8 +385,6 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			}
 			userInfo.LastMessage = LastMessagOut
 		} else {
-			fmt.Println(userInfo)
-			fmt.Println("si pasa")
 			userInfo.LastMessage = time.Now()
 		}
 	} else if err != redis.Nil {
@@ -412,11 +412,12 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 
 				userInfo = domain.UserInfo{
 					Room:      roomID,
-					Color:     randomColor,
+					Color:     room["Color"].(string),
 					Vip:       room["Vip"].(bool),
 					Moderator: room["Moderator"].(bool),
 					Verified:  room["Verified"].(bool),
 					Baneado:   room["Baneado"].(bool),
+					Identidad: room["Identidad"].(string),
 				}
 				userInfo.LastMessage = time.Now()
 				followingInfoMap, ok := room["Following"].(map[string]interface{})
@@ -475,7 +476,6 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 					}
 				}
 
-				// Buscar el documento de suscripción usando el ID de Subscription
 				subscription, err := r.getSubscriptionByID(subscriptionID)
 
 				if err == nil {
@@ -817,6 +817,8 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 			"Rooms.$.Baneado":      userInfo.Baneado,
 			"Rooms.$.TimeOut":      userInfo.TimeOut,
 			"Rooms.$.EmblemasChat": userInfo.EmblemasChat,
+			"Rooms.$.Identidad":    userInfo.Identidad,
+			"Rooms.$.Color":        userInfo.Color,
 		},
 	}
 	_, err := Collection.UpdateOne(context.Background(), filter, updateFields)
@@ -832,6 +834,7 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 		"Moderator":        userInfo.Moderator,
 		"EmblemasChat":     userInfo.EmblemasChat,
 		"Color":            userInfo.Color,
+		"Identidad":        userInfo.Identidad,
 		"SubscriptionInfo": userInfo.SubscriptionInfo,
 		"Subscription":     userInfo.Subscription,
 		"Verified":         userInfo.Verified,
