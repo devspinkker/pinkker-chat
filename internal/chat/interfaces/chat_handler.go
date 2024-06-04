@@ -578,6 +578,31 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 		})
 	}
 }
+func (h *ChatHandler) ActionIdentidadUser(c *fiber.Ctx) error {
+	NameUser := c.Context().UserValue("nameUser").(string)
+	verified := c.Context().UserValue("verified").(bool)
+
+	// request validate
+	var req domain.ActionIdentidadUser
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"data": "StatusBadRequest",
+		})
+	}
+
+	err := h.chatService.ActionIdentidadUser(req, NameUser, verified)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"data": "StatusInternalServerError",
+		})
+	} else {
+		return c.Status(fiber.StatusOK).JSON(fiber.Map{
+			"data": "TimeOut",
+		})
+
+	}
+
+}
 
 // commandos
 func (h *ChatHandler) GetCommands(c *fiber.Ctx) error {
