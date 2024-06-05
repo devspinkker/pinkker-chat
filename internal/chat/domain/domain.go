@@ -50,6 +50,7 @@ type InfoUser struct {
 type ChatMessage struct {
 	NameUser             string             `json:"nameUser"`
 	Color                string             `json:"Color" bson:"Color"`
+	Identidad            string             `json:"Identidad" bson:"Identidad"`
 	Message              string             `json:"message"`
 	Vip                  bool               `json:"vip"`
 	Subscription         primitive.ObjectID `json:"subscription"`

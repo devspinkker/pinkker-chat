@@ -104,6 +104,7 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 		TimeOut:              userInfo.TimeOut,
 		Moderator:            userInfo.Moderator,
 		EmblemasChat:         userInfo.EmblemasChat,
+		Identidad:            userInfo.Identidad,
 		StreamerChannelOwner: userInfo.StreamerChannelOwner,
 		ResNameUser:          ResNameUser,
 		ResMessage:           ResMsj,
