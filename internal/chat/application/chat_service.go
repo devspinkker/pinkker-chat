@@ -385,6 +385,9 @@ func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, Nam
 			userInfo.Identidad = config.IDENTIDADMUTE()
 		}
 	}
+	if action.Identidad == "" && action.Color == "" {
+		userInfo.Identidad = ""
+	}
 	err = s.roomRepository.UpdataUserInfo(roomID, NameUser, userInfo)
 	if err != nil {
 		return err
