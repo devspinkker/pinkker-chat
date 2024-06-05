@@ -381,9 +381,8 @@ func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, Nam
 	}
 	if action.Identidad != "" {
 		if action.Identidad == "mute" {
-			action.Identidad = config.IDENTIDADMUTE()
+			userInfo.Identidad = config.IDENTIDADMUTE()
 		}
-		userInfo.Color = action.Color
 	}
 	err = s.roomRepository.UpdataUserInfo(roomID, NameUser, userInfo)
 	if err != nil {

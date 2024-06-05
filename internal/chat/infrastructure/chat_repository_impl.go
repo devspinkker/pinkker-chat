@@ -417,7 +417,12 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 					Moderator: room["Moderator"].(bool),
 					Verified:  room["Verified"].(bool),
 					Baneado:   room["Baneado"].(bool),
-					Identidad: room["Identidad"].(string),
+				}
+				if identidad, ok := room["Identidad"].(string); ok {
+					userInfo.Identidad = identidad
+				} else {
+					userInfo.Identidad = ""
+
 				}
 				userInfo.LastMessage = time.Now()
 				followingInfoMap, ok := room["Following"].(map[string]interface{})
@@ -825,21 +830,23 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 	if err != nil {
 		return err
 	}
+	streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
 
 	userHashKey := "userInformation:" + nameUser + ":inTheRoom:" + roomID.Hex()
 	userFields := map[string]interface{}{
-		"Vip":              userInfo.Vip,
-		"Baneado":          userInfo.Baneado,
-		"TimeOut":          userInfo.TimeOut,
-		"Moderator":        userInfo.Moderator,
-		"EmblemasChat":     userInfo.EmblemasChat,
-		"Color":            userInfo.Color,
-		"Identidad":        userInfo.Identidad,
-		"SubscriptionInfo": userInfo.SubscriptionInfo,
-		"Subscription":     userInfo.Subscription,
-		"Verified":         userInfo.Verified,
-		"Room":             userInfo.Room,
-		"LastMessage":      userInfo.LastMessage,
+		"Vip":                  userInfo.Vip,
+		"Baneado":              userInfo.Baneado,
+		"TimeOut":              userInfo.TimeOut,
+		"Moderator":            userInfo.Moderator,
+		"EmblemasChat":         userInfo.EmblemasChat,
+		"Color":                userInfo.Color,
+		"Identidad":            userInfo.Identidad,
+		"SubscriptionInfo":     userInfo.SubscriptionInfo,
+		"Subscription":         userInfo.Subscription,
+		"Verified":             userInfo.Verified,
+		"Room":                 userInfo.Room,
+		"LastMessage":          userInfo.LastMessage,
+		"StreamerChannelOwner": streamerChannelOwner,
 	}
 
 	err = r.RedisCacheSetUpdata(userHashKey, userFields)
