@@ -34,6 +34,13 @@ type SubscriptionInfo struct {
 	Notified             bool               `bson:"Notified"`
 	Text                 string             `bson:"Text"`
 }
+type Categoria struct {
+	Name       string   `json:"nombre"`
+	Img        string   `json:"img,omitempty"`
+	Spectators int      `json:"spectators,omitempty"`
+	Tags       []string `json:"tags,omitempty"`
+	TopColor   string   `json:"TopColor,omitempty"`
+}
 
 type FollowInfo struct {
 	Since         time.Time `json:"since" bson:"since"`
@@ -140,7 +147,7 @@ type Host struct {
 
 func (Message *MessagesTheSendMessagesRoom) MessagesTheSendMessagesRoomValidate() error {
 
-	if len(Message.Message) >= 300 || len(Message.Message) <= 0 {
+	if len(Message.Message) >= 600 || len(Message.Message) <= 0 {
 		return errors.New("la longitud de 'action' debe ser mayor o igual a 3 caracteres y menor a 12")
 	}
 	return nil

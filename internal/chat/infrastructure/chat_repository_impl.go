@@ -121,8 +121,6 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 	if err != nil {
 		return err
 	}
-	fmt.Println(action)
-	fmt.Println(isActive)
 
 	// Si la acción es conectar y el usuario ya está activo, no hacer nada
 	if action == "connect" && isActive {
@@ -147,7 +145,7 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 			return err
 		}
 
-		_, err = r.updateViewerCount(ctx, session, roomIDObj, -1)
+		err = r.updateViewerCount(ctx, session, roomIDObj, -1)
 		if err != nil {
 			return err
 		}
@@ -169,7 +167,7 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 			return err
 		}
 
-		_, err = r.updateViewerCount(ctx, session, roomIDObj, 1)
+		err = r.updateViewerCount(ctx, session, roomIDObj, 1)
 		if err != nil {
 			return err
 		}
@@ -184,47 +182,79 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 	return nil
 }
 
-func (r *PubSubService) updateViewerCount(ctx context.Context, session mongo.Session, roomID primitive.ObjectID, delta int) (int64, error) {
+func (r *PubSubService) updateViewerCount(ctx context.Context, session mongo.Session, roomID primitive.ObjectID, delta int) error {
 	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
 	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
 
-	// Actualizar contador de espectadores para la sala
-	result, err := streamCollection.UpdateOne(ctx,
-		bson.M{"_id": roomID},
-		bson.M{"$inc": bson.M{"ViewerCount": delta}})
+	// Iniciar una sesión de transacción
+	err := session.StartTransaction()
 	if err != nil {
-		return 0, err
+		return err
 	}
 
-	// Obtener la categoría de la sala
+	defer func() {
+		if err != nil {
+			_ = session.AbortTransaction(ctx)
+		} else {
+			err = session.CommitTransaction(ctx)
+		}
+	}()
+
+	// Obtener el Stream actual
 	var updatedStream domain.Stream
 	err = streamCollection.FindOne(ctx, bson.M{"_id": roomID}).Decode(&updatedStream)
 	if err != nil {
-		return 0, err
+		return err
 	}
+
+	// Verificar que el nuevo ViewerCount no sea negativo
+	newViewerCount := updatedStream.ViewerCount + delta
+	if newViewerCount < 0 {
+		return fmt.Errorf("ViewerCount cannot be negative")
+	}
+
+	// Actualizar contador de espectadores para la sala
+	_, err = streamCollection.UpdateOne(ctx,
+		bson.M{"_id": roomID},
+		bson.M{"$inc": bson.M{"ViewerCount": delta}})
+	if err != nil {
+		return err
+	}
+
+	// Obtener la categoría de la sala
 	categoria := updatedStream.StreamCategory
 
-	// Actualizar contador de espectadores para la categoría
-	_, err = categoriaCollection.UpdateOne(ctx,
-		bson.M{"Name": categoria},
-		bson.M{"$inc": bson.M{"Spectators": delta}})
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			_, err = categoriaCollection.InsertOne(ctx, bson.M{
-				"Name":       categoria,
-				"Img":        "",
-				"Spectators": delta,
-				"Tags":       []string{},
-			})
-			if err != nil {
-				return 0, err
-			}
-		} else {
-			return 0, err
-		}
+	// Obtener la categoría actual
+	var updatedCategory domain.Categoria
+	err = categoriaCollection.FindOne(ctx, bson.M{"Name": categoria}).Decode(&updatedCategory)
+	if err != nil && err != mongo.ErrNoDocuments {
+		return err
 	}
 
-	return result.ModifiedCount, nil
+	// Verificar que el nuevo Spectators no sea negativo
+	newSpectators := updatedCategory.Spectators + delta
+	if newSpectators < 0 {
+		return fmt.Errorf("spectators cannot be negative")
+	}
+
+	// Actualizar contador de espectadores para la categoría
+	if err == mongo.ErrNoDocuments {
+		_, err = categoriaCollection.InsertOne(ctx, bson.M{
+			"Name":       categoria,
+			"Img":        "",
+			"Spectators": delta,
+			"Tags":       []string{},
+		})
+	} else {
+		_, err = categoriaCollection.UpdateOne(ctx,
+			bson.M{"Name": categoria},
+			bson.M{"$inc": bson.M{"Spectators": delta}})
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // uso general sobre informacion de un usuario en una sala
