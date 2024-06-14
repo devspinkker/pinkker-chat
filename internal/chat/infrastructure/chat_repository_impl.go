@@ -186,23 +186,9 @@ func (r *PubSubService) updateViewerCount(ctx context.Context, session mongo.Ses
 	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
 	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
 
-	// Iniciar una sesión de transacción
-	err := session.StartTransaction()
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if err != nil {
-			_ = session.AbortTransaction(ctx)
-		} else {
-			err = session.CommitTransaction(ctx)
-		}
-	}()
-
 	// Obtener el Stream actual
 	var updatedStream domain.Stream
-	err = streamCollection.FindOne(ctx, bson.M{"_id": roomID}).Decode(&updatedStream)
+	err := streamCollection.FindOne(ctx, bson.M{"_id": roomID}).Decode(&updatedStream)
 	if err != nil {
 		return err
 	}
