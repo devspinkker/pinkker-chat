@@ -536,7 +536,55 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 		})
 	}
 	// Action  moderador
-	if req.Action == "timeOut" {
+	if req.Action == "moderator" {
+		errTimeOut := h.chatService.ModeratorActionModerator(req, verified)
+		if errTimeOut != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"data": "StatusInternalServerError",
+			})
+		} else {
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
+				"data": "TimeOut",
+			})
+
+		}
+	} else if req.Action == "rModerator" {
+		errTimeOut := h.chatService.ModeratorActionUnModerator(req, verified)
+		if errTimeOut != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"data": "StatusInternalServerError",
+			})
+		} else {
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
+				"data": "TimeOut",
+			})
+
+		}
+	} else if req.Action == "vip" {
+		errTimeOut := h.chatService.ModeratorActionVip(req, verified)
+		if errTimeOut != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"data": "StatusInternalServerError",
+			})
+		} else {
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
+				"data": "TimeOut",
+			})
+
+		}
+	} else if req.Action == "rVip" {
+		errTimeOut := h.chatService.ModeratorActionunVip(req, verified)
+		if errTimeOut != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"data": "StatusInternalServerError",
+			})
+		} else {
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
+				"data": "TimeOut",
+			})
+
+		}
+	} else if req.Action == "timeOut" {
 		errTimeOut := h.chatService.ModeratorActionTimeOut(req, verified)
 		if errTimeOut != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
