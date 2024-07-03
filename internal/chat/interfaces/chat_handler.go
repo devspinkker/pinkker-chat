@@ -228,106 +228,65 @@ func (h *ChatHandler) Host(c *fiber.Ctx) error {
 	})
 }
 func (h *ChatHandler) NotifyHost(roomID string, byHost string, Host domain.Host) error {
-	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
-	if err != nil {
-		return err
-	}
+
 	notification := map[string]interface{}{
 		"action": "host_action",
 		"hostA":  Host,
 	}
-	for _, client := range clients {
-		err = client.WriteJSON(notification)
-		if err != nil {
-			return err
-		}
-	}
+	h.chatService.PublishAction(roomID+"action", notification)
+
 	stream, err := h.chatService.FindStreamByStreamer(Host.NameUser)
 	if err != nil {
 		return err
 	}
-	ClientStream, err := h.chatService.GetWebSocketClientsInRoom(stream.ID.Hex())
-	if err != nil {
-		return err
-	}
+
 	notification = map[string]interface{}{
 		"action":     "Host",
 		"hostby":     byHost,
 		"spectators": stream.ViewerCount,
 	}
-	for _, client := range ClientStream {
-		err = client.WriteJSON(notification)
-		if err != nil {
-			return err
-		}
-	}
+	h.chatService.PublishAction(stream.ID.Hex()+"action", notification)
 
 	return nil
 }
 
 func (h *ChatHandler) NotifyMessageAnclarToRoomClients(roomID string, anclarMessage domain.AnclarMessageData) error {
-	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
-	if err != nil {
-		return err
-	}
+
 	notification := map[string]interface{}{
 		"action":  "message_Anclar",
 		"message": anclarMessage,
 	}
-	err = h.chatService.SaveMessageAnclarRedis(roomID, anclarMessage)
+	err := h.chatService.SaveMessageAnclarRedis(roomID+"action", anclarMessage)
 	if err != nil {
 		return err
 	}
-	for _, client := range clients {
-		err = client.WriteJSON(notification)
-		if err != nil {
-			return err
-		}
-	}
+	h.chatService.PublishAction(roomID+"action", notification)
 
 	return nil
+
 }
 
 func (h *ChatHandler) GetAncladoMessageFromRedis(roomID string) (map[string]interface{}, error) {
-	return h.chatService.GetAncladoMessageFromRedis(roomID)
+	return h.chatService.GetAncladoMessageFromRedis(roomID + "action")
 }
 func (h *ChatHandler) NotifyMessageDesanclarToRoomClients(roomID, messageID string) error {
-	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
-	if err != nil {
-		return err
-	}
+
 	notification := map[string]interface{}{
 		"action":     "message_Desanclar",
 		"message_id": messageID,
 	}
 
-	for _, client := range clients {
-		err = client.WriteJSON(notification)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return h.chatService.PublishAction(roomID+"action", notification)
 }
 func (h *ChatHandler) NotifyMessageDeletedToRoomClients(roomID, messageID string) error {
-	clients, err := h.chatService.GetWebSocketClientsInRoom(roomID)
-	if err != nil {
-		return err
-	}
+
 	notification := map[string]interface{}{
 		"action":     "message_deleted",
 		"message_id": messageID,
 	}
 
-	for _, client := range clients {
-		err = client.WriteJSON(notification)
-		if err != nil {
-			return err
-		}
-	}
+	return h.chatService.PublishAction(roomID+"action", notification)
 
-	return nil
 }
 
 func (h *ChatHandler) UserConnectedStream(roomID, nameUser, action string) error {
@@ -344,7 +303,7 @@ func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser str
 	return UserInfo, err
 }
 
-func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string) error {
+func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
 	roomID := c.Params("roomID")
 
 	sub := h.chatService.SubscribeToRoom(roomID)
@@ -374,7 +333,36 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn, nameuser string)
 		}
 	}
 }
+func (h *ChatHandler) ReceiveMessageActionMessages(c *websocket.Conn) error {
+	roomID := c.Params("roomID") + "action"
 
+	sub := h.chatService.SubscribeToRoom(roomID)
+
+	for {
+		go func() {
+			for {
+				_, _, err := c.ReadMessage()
+				if err != nil {
+					h.chatService.CloseSubscription(sub)
+					c.Close()
+					return
+				}
+			}
+		}()
+
+		message, err := sub.ReceiveMessage(context.Background())
+		if err != nil {
+			h.chatService.CloseSubscription(sub)
+			return err
+		}
+
+		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
+		if err != nil {
+			h.chatService.CloseSubscription(sub)
+			return err
+		}
+	}
+}
 func (h *ChatHandler) RedisCacheGetLastRoomMessages(roomID string) ([]string, error) {
 
 	message, err := h.chatService.RedisCacheGetLastRoomMessages(roomID)
