@@ -695,7 +695,23 @@ func (p *PubSubService) PublishCommandInTheRoom(roomID primitive.ObjectID, comma
 
 	return redisClientErr
 }
+func (p *PubSubService) PublishAction(roomID string, noty map[string]interface{}) error {
 
+	chatMessageJSON, err := json.Marshal(noty)
+	if err != nil {
+		return err
+	}
+	err = p.redisClient.Publish(
+		context.Background(),
+		roomID,
+		string(chatMessageJSON),
+	).Err()
+	if err != nil {
+		return err
+	}
+
+	return err
+}
 func (p *PubSubService) GetCommandsFromCache(roomID primitive.ObjectID, commandName string) error {
 	cachedCommands, err := p.redisClient.Get(context.Background(), "CommandsInChatThe:"+roomID.Hex()).Result()
 	if err != nil {

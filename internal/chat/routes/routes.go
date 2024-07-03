@@ -6,7 +6,6 @@ import (
 	"PINKKER-CHAT/internal/chat/interfaces"
 	"PINKKER-CHAT/pkg/jwt"
 	"PINKKER-CHAT/pkg/middleware"
-	"PINKKER-CHAT/pkg/utils"
 	"encoding/json"
 
 	"github.com/gofiber/fiber/v2"
@@ -100,7 +99,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			}
 		}
 		for {
-			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c, nameuser)
+			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c)
 			if errReceiveMessageFromRoom != nil {
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
 				chatHandler.UserConnectedStream(roomID, nameuser, "disconnect")
@@ -118,10 +117,10 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	app.Post("/chatStreaming/:roomID/messages/Host", middleware.UseExtractor(), chatHandler.Host)
 
 	app.Get("/ws/notifications/notifications/actionMessages/:roomID", websocket.New(func(c *websocket.Conn) {
-		roomID := c.Params("roomID")
-		chatService := utils.NewChatService()
-		client := &utils.Client{Connection: c}
-		chatService.AddClientToRoom(roomID, client)
+		roomID := c.Params("roomID") + "actionMessages"
+		// chatService := utils.NewChatService()
+		// client := &utils.Client{Connection: c}
+		// chatService.AddClientToRoom(roomID, client)
 
 		ancladoMessage, err := chatHandler.GetAncladoMessageFromRedis(roomID)
 		if err == nil && ancladoMessage != nil {
@@ -136,16 +135,16 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			}
 		}
 
-		defer func() {
-			chatService.RemoveClientFromRoom(roomID, client)
-			_ = c.Close()
-		}()
+		// defer func() {
+		// 	chatService.RemoveClientFromRoom(roomID, client)
+		// 	_ = c.Close()
+		// }()
 
-		for {
-			_, _, err := c.ReadMessage()
-			if err != nil {
-				break
-			}
+		errReceiveMessageFromRoom := chatHandler.ReceiveMessageActionMessages(c)
+		if errReceiveMessageFromRoom != nil {
+			c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
+			c.Close()
+			return
 		}
 	}))
 

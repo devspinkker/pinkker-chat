@@ -132,7 +132,10 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 
 	return nil
 }
+func (s *ChatService) PublishAction(roomID string, noty map[string]interface{}) error {
+	return s.roomRepository.PublishAction(roomID, noty)
 
+}
 func (s *ChatService) RedisCacheGetLastRoomMessages(roomID string) ([]string, error) {
 	message, err := s.roomRepository.RedisCacheGetLastRoomMessages(roomID)
 	if err != nil {
