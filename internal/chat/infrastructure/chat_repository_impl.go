@@ -257,10 +257,10 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 	var InsertuserInfoCollection bool = false
 	streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
 	defaultUserFields := map[string]interface{}{
-		"Room":             roomID,
-		"Color":            randomColor,
+		"Room":             roomID,      // primitive.ObjectID
+		"Color":            randomColor, //string
 		"Vip":              false,
-		"Verified":         verified,
+		"Verified":         verified, // bool
 		"Moderator":        false,
 		"Subscription":     primitive.ObjectID{},
 		"SubscriptionInfo": domain.SubscriptionInfo{},
@@ -273,7 +273,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		},
 		"Identidad":            "",
 		"Following":            domain.FollowInfo{},
-		"StreamerChannelOwner": streamerChannelOwner,
+		"StreamerChannelOwner": streamerChannelOwner, //bool
 		"LastMessage":          time.Now(),
 	}
 

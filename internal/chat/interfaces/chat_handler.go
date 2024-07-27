@@ -417,7 +417,7 @@ func (h *ChatHandler) Actions(c *fiber.Ctx) error {
 				"data": "StatusInternalServerError",
 			})
 		} else {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "removeban",
 			})
 
