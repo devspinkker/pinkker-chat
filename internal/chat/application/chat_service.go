@@ -80,8 +80,13 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 		} else if modChat == "Subscriptions" {
 			if userInfo.Subscription == primitive.NilObjectID {
 				return errors.New("only subscribers")
+			} else {
+				if userInfo.SubscriptionInfo.SubscriptionEnd.After(userInfo.SubscriptionInfo.SubscriptionStart.AddDate(0, 1, 0)) {
+					return errors.New("only subscribers")
+				}
 			}
 		}
+
 		ModSlowModeStream, err := s.roomRepository.RedisGetModSlowModeStream(roomID)
 		if err != nil {
 			ModSlowModeStream = 0
