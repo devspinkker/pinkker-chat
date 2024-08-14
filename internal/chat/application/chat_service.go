@@ -79,7 +79,7 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 			}
 		} else if modChat == "Subscriptions" {
 			err = s.validateSubscription(userInfo)
-			fmt.Println(userInfo)
+			fmt.Println(userInfo.SubscriptionInfo)
 			if err != nil {
 				return err
 			}
@@ -144,9 +144,8 @@ func (s *ChatService) validateSubscription(userInfo domain.UserInfo) error {
 	if userInfo.SubscriptionInfo.SubscriptionStart == (time.Time{}) || userInfo.SubscriptionInfo.SubscriptionEnd == (time.Time{}) {
 		return errors.New("invalid subscription dates")
 	}
-
-	if userInfo.SubscriptionInfo.SubscriptionEnd.After(userInfo.SubscriptionInfo.SubscriptionStart.AddDate(0, 1, 0)) {
-		return errors.New("only subscribers")
+	if time.Now().After(userInfo.SubscriptionInfo.SubscriptionEnd) {
+		return errors.New("subscription has expired")
 	}
 
 	return nil
