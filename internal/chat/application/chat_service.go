@@ -78,13 +78,12 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 				return errors.New("only followers")
 			}
 		} else if modChat == "Subscriptions" {
-			if userInfo.Subscription == primitive.NilObjectID {
-				return errors.New("only subscribers")
-			} else {
-				if userInfo.SubscriptionInfo.SubscriptionEnd.After(userInfo.SubscriptionInfo.SubscriptionStart.AddDate(0, 1, 0)) {
-					return errors.New("only subscribers")
-				}
+			err = s.validateSubscription(userInfo)
+			fmt.Println(userInfo)
+			if err != nil {
+				return err
 			}
+
 		}
 
 		ModSlowModeStream, err := s.roomRepository.RedisGetModSlowModeStream(roomID)
@@ -134,6 +133,21 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 			}
 		}
 	}()
+
+	return nil
+}
+func (s *ChatService) validateSubscription(userInfo domain.UserInfo) error {
+	if userInfo.Subscription == primitive.NilObjectID {
+		return errors.New("only subscribers")
+	}
+
+	if userInfo.SubscriptionInfo.SubscriptionStart == (time.Time{}) || userInfo.SubscriptionInfo.SubscriptionEnd == (time.Time{}) {
+		return errors.New("invalid subscription dates")
+	}
+
+	if userInfo.SubscriptionInfo.SubscriptionEnd.After(userInfo.SubscriptionInfo.SubscriptionStart.AddDate(0, 1, 0)) {
+		return errors.New("only subscribers")
+	}
 
 	return nil
 }
