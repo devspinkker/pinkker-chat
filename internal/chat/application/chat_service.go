@@ -79,7 +79,6 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 			}
 		} else if modChat == "Subscriptions" {
 			err = s.validateSubscription(userInfo)
-			fmt.Println(userInfo.SubscriptionInfo)
 			if err != nil {
 				return err
 			}
