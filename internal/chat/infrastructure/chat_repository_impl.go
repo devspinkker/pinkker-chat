@@ -113,7 +113,6 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 }
 
 func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string, action string) error {
-	activeUsersKey := "ActiveUsers"
 	activeUserRoomsKey := "ActiveUserRooms:" + nameUser // Clave para las salas activas del usuario
 
 	// Verificar si el usuario ya está activo en la sala actual
@@ -172,11 +171,6 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 			return err
 		}
 
-		// Agregar al usuario como activo globalmente si no lo estaba
-		err = r.redisClient.SAdd(ctx, activeUsersKey, nameUser).Err()
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
