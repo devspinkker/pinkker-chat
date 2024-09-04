@@ -799,6 +799,20 @@ func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room prim
 	err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
 	RedisCacheSetLastRoomMessagesChan <- err
 }
+
+func (r *PubSubService) RedisCacheAddUniqueUserInteraction(Room primitive.ObjectID, NameUser string, RedisCacheAddUniqueUserInteractionChan chan error) {
+	key := Room.Hex() + ":uniqueinteractions"
+
+	err := r.redisClient.SAdd(context.Background(), key, NameUser).Err()
+	if err != nil {
+		RedisCacheAddUniqueUserInteractionChan <- err
+		return
+	}
+
+	err = r.redisClient.Expire(context.Background(), key, 24*time.Hour).Err()
+	RedisCacheAddUniqueUserInteractionChan <- err
+}
+
 func (r *PubSubService) RedisGetModStream(Room primitive.ObjectID) (string, error) {
 
 	value, err := r.redisClient.Get(context.Background(), Room.Hex()).Result()

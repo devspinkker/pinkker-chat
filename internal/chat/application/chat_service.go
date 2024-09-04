@@ -122,7 +122,10 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 	RedisCacheSetLastRoomMessagesAndPublishMessageChan := make(chan error)
 
 	go s.roomRepository.RedisCacheSetLastRoomMessagesAndPublishMessage(roomID, string(chatMessageJSON), RedisCacheSetLastRoomMessagesAndPublishMessageChan, nameUser)
+	go s.roomRepository.RedisCacheAddUniqueUserInteraction(roomID, nameUser, RedisCacheSetLastRoomMessagesAndPublishMessageChan)
+
 	// go s.roomRepository.SaveMessageTheUserInRoom(nameUser, roomID, string(chatMessageJSON), saveMessageChan)
+
 	go func() {
 		if message[0] == '!' {
 
