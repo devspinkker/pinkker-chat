@@ -528,6 +528,12 @@ func (s *ChatService) UserConnectedStream(roomID, nameUser, action string) error
 	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser, action)
 	return err
 }
+
+func (s *ChatService) RedisFindActiveUserInRoomByNamePrefix(roomID, nameUser string) (error, bool) {
+	ctx := context.TODO()
+	return s.roomRepository.RedisFindActiveUserInRoomByNamePrefix(ctx, roomID, nameUser)
+}
+
 func (s *ChatService) SaveMessageAnclarRedis(roomID string, anclarMessage domain.AnclarMessageData) error {
 	err := s.roomRepository.SaveMessageAnclarRedis(roomID, anclarMessage)
 	return err
