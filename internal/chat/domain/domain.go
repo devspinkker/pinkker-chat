@@ -123,6 +123,11 @@ type MessagesTheSendMessagesRoom struct {
 	ResNameUser string `json:"ResNameUser"`
 	ResMessage  string `json:"ResMessage"`
 }
+
+type RedisFindActiveUserInRoomByNamePrefix struct {
+	Room     string `json:"Room"`
+	NameUser string `json:"NameUser"`
+}
 type AnclarMessageData struct {
 	NameUser             string      `json:"nameUser"`
 	Color                string      `json:"Color"`

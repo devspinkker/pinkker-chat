@@ -111,7 +111,15 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 
 	return nil
 }
+func (r *PubSubService) RedisFindActiveUserInRoomByNamePrefix(ctx context.Context, roomID, nameUser string) (error, bool) {
+	activeUserRoomsKey := "ActiveUserRooms:" + nameUser
+	isActive, err := r.redisClient.SIsMember(ctx, activeUserRoomsKey, roomID).Result()
+	if err != nil || !isActive {
+		return err, false
+	}
 
+	return err, true
+}
 func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string, action string) error {
 	activeUserRoomsKey := "ActiveUserRooms:" + nameUser // Clave para las salas activas del usuario
 
