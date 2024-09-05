@@ -139,6 +139,11 @@ func (r *PubSubService) RedisFindMatchingUsersInRoomByPrefix(ctx context.Context
 			if isActive {
 				matchingUsers = append(matchingUsers, nameUser)
 			}
+
+			// Detener el bucle si ya hemos encontrado 5 usuarios
+			if len(matchingUsers) == 5 {
+				break
+			}
 		}
 	}
 
