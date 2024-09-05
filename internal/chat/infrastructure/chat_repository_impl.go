@@ -113,41 +113,32 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 	return nil
 }
 func (r *PubSubService) RedisFindMatchingUsersInRoomByPrefix(ctx context.Context, roomID, prefix string) ([]string, error) {
-	// Obtener todas las claves de usuarios activos
 	keys, err := r.redisClient.Keys(ctx, "ActiveUserRooms:*").Result()
 	if err != nil {
 		return nil, err
 	}
 
-	// Lista para almacenar los usuarios que coinciden con el prefijo y están activos en la sala
 	var matchingUsers []string
 
-	// Iterar sobre las claves para encontrar coincidencias de prefijo
 	for _, key := range keys {
-		// Extraer el nombre de usuario de la clave
 		nameUser := strings.TrimPrefix(key, "ActiveUserRooms:")
 
-		// Verificar si el nombre de usuario coincide con el prefijo
 		if strings.HasPrefix(nameUser, prefix) {
-			// Verificar si el usuario está activo en la sala dada
 			isActive, err := r.redisClient.SIsMember(ctx, key, roomID).Result()
 			if err != nil {
 				return nil, err
 			}
 
-			// Si el usuario está activo en la sala, agregar a la lista
 			if isActive {
 				matchingUsers = append(matchingUsers, nameUser)
 			}
 
-			// Detener el bucle si ya hemos encontrado 5 usuarios
 			if len(matchingUsers) == 5 {
 				break
 			}
 		}
 	}
 
-	// Si no se encontraron coincidencias
 	if len(matchingUsers) == 0 {
 		return nil, errors.New("no se encontraron usuarios que coincidan con el prefijo en la sala")
 	}
