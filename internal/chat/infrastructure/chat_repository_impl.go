@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -111,15 +112,44 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 
 	return nil
 }
-func (r *PubSubService) RedisFindActiveUserInRoomByNamePrefix(ctx context.Context, roomID, nameUser string) (error, bool) {
-	activeUserRoomsKey := "ActiveUserRooms:" + nameUser
-	isActive, err := r.redisClient.SIsMember(ctx, activeUserRoomsKey, roomID).Result()
-	if err != nil || !isActive {
-		return err, false
+func (r *PubSubService) RedisFindMatchingUsersInRoomByPrefix(ctx context.Context, roomID, prefix string) ([]string, error) {
+	// Obtener todas las claves de usuarios activos
+	keys, err := r.redisClient.Keys(ctx, "ActiveUserRooms:*").Result()
+	if err != nil {
+		return nil, err
 	}
 
-	return err, true
+	// Lista para almacenar los usuarios que coinciden con el prefijo y están activos en la sala
+	var matchingUsers []string
+
+	// Iterar sobre las claves para encontrar coincidencias de prefijo
+	for _, key := range keys {
+		// Extraer el nombre de usuario de la clave
+		nameUser := strings.TrimPrefix(key, "ActiveUserRooms:")
+
+		// Verificar si el nombre de usuario coincide con el prefijo
+		if strings.HasPrefix(nameUser, prefix) {
+			// Verificar si el usuario está activo en la sala dada
+			isActive, err := r.redisClient.SIsMember(ctx, key, roomID).Result()
+			if err != nil {
+				return nil, err
+			}
+
+			// Si el usuario está activo en la sala, agregar a la lista
+			if isActive {
+				matchingUsers = append(matchingUsers, nameUser)
+			}
+		}
+	}
+
+	// Si no se encontraron coincidencias
+	if len(matchingUsers) == 0 {
+		return nil, errors.New("no se encontraron usuarios que coincidan con el prefijo en la sala")
+	}
+
+	return matchingUsers, nil
 }
+
 func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string, action string) error {
 	activeUserRoomsKey := "ActiveUserRooms:" + nameUser // Clave para las salas activas del usuario
 

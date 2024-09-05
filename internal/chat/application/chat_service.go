@@ -529,9 +529,9 @@ func (s *ChatService) UserConnectedStream(roomID, nameUser, action string) error
 	return err
 }
 
-func (s *ChatService) RedisFindActiveUserInRoomByNamePrefix(roomID, nameUser string) (error, bool) {
+func (s *ChatService) RedisFindMatchingUsersInRoomByPrefix(roomID, nameUser string) ([]string, error) {
 	ctx := context.TODO()
-	return s.roomRepository.RedisFindActiveUserInRoomByNamePrefix(ctx, roomID, nameUser)
+	return s.roomRepository.RedisFindMatchingUsersInRoomByPrefix(ctx, roomID, nameUser)
 }
 
 func (s *ChatService) SaveMessageAnclarRedis(roomID string, anclarMessage domain.AnclarMessageData) error {

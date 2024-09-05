@@ -19,24 +19,24 @@ func NewChatHandler(chatService *application.ChatService) *ChatHandler {
 		chatService: chatService,
 	}
 }
-func (h *ChatHandler) RedisFindActiveUserInRoomByNamePrefix(c *fiber.Ctx) error {
+func (h *ChatHandler) RedisFindMatchingUsersInRoomByPrefix(c *fiber.Ctx) error {
 	var req domain.RedisFindActiveUserInRoomByNamePrefix
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"data": "StatusBadRequest",
 		})
 	}
-	errPublishMessageInRoom, active := h.chatService.RedisFindActiveUserInRoomByNamePrefix(req.Room, req.NameUser)
-	if errPublishMessageInRoom != nil {
+	usersActives, err := h.chatService.RedisFindMatchingUsersInRoomByPrefix(req.Room, req.NameUser)
+	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"message": "StatusBadRequest",
-			"active":  active,
-			"data":    errPublishMessageInRoom,
+			"active":  usersActives,
+			"data":    err,
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "ok",
-		"active":  active,
+		"active":  usersActives,
 	})
 
 }
