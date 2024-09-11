@@ -43,6 +43,13 @@ func (h *ChatHandler) RedisFindMatchingUsersInRoomByPrefix(c *fiber.Ctx) error {
 func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 	NameUser := c.Context().UserValue("nameUser").(string)
 	verified := c.Context().UserValue("verified").(bool)
+	IdUserToken := c.Context().UserValue("_id").(string)
+	id, errinObjectID := primitive.ObjectIDFromHex(IdUserToken)
+	if errinObjectID != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "StatusInternalServerError",
+		})
+	}
 	roomID := c.Params("roomID")
 	var req domain.MessagesTheSendMessagesRoom
 	if err := c.BodyParser(&req); err != nil {
@@ -62,7 +69,7 @@ func (h *ChatHandler) SendMessage(c *fiber.Ctx) error {
 			"message": "StatusInternalServerError",
 		})
 	}
-	errPublishMessageInRoom := h.chatService.PublishMessageInRoom(room, req.Message, req.ResNameUser, req.ResMessage, NameUser, verified)
+	errPublishMessageInRoom := h.chatService.PublishMessageInRoom(room, req.Message, req.ResNameUser, req.ResMessage, NameUser, verified, id)
 	if errPublishMessageInRoom != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"data": errPublishMessageInRoom.Error(),
@@ -309,9 +316,9 @@ func (h *ChatHandler) NotifyMessageDeletedToRoomClients(roomID, messageID string
 
 }
 
-func (h *ChatHandler) UserConnectedStream(roomID, nameUser, action string) error {
+func (h *ChatHandler) UserConnectedStream(roomID, nameUser, action string, id primitive.ObjectID) error {
 
-	err := h.chatService.UserConnectedStream(roomID, nameUser, action)
+	err := h.chatService.UserConnectedStream(roomID, nameUser, action, id)
 
 	return err
 }

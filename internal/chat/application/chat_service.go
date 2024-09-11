@@ -52,7 +52,7 @@ func (s *ChatService) FindStreamByStreamer(nameUser string) (domain.Stream, erro
 }
 
 // chat messages
-func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, ResNameUser, ResMsj, nameUser string, verified bool) error {
+func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, ResNameUser, ResMsj, nameUser string, verified bool, id primitive.ObjectID) error {
 
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, nameUser, verified)
 	if err != nil {
@@ -118,13 +118,12 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 	if err != nil {
 		return err
 	}
-	// saveMessageChan := make(chan error)
+	saveMessageChan := make(chan error)
 	RedisCacheSetLastRoomMessagesAndPublishMessageChan := make(chan error)
 
 	go s.roomRepository.RedisCacheSetLastRoomMessagesAndPublishMessage(roomID, string(chatMessageJSON), RedisCacheSetLastRoomMessagesAndPublishMessageChan, nameUser)
 	go s.roomRepository.RedisCacheAddUniqueUserInteraction(roomID, nameUser, RedisCacheSetLastRoomMessagesAndPublishMessageChan)
-
-	// go s.roomRepository.SaveMessageTheUserInRoom(nameUser, roomID, string(chatMessageJSON), saveMessageChan)
+	go s.roomRepository.SaveMessageTheUserInRoom(id, roomID, string(chatMessageJSON), saveMessageChan)
 
 	go func() {
 		if message[0] == '!' {
@@ -523,9 +522,9 @@ func (s *ChatService) UpdataCommands(roomID primitive.ObjectID, newCommands map[
 	UpdataCommandsErr := s.roomRepository.UpdataCommands(roomID, newCommands)
 	return UpdataCommandsErr
 }
-func (s *ChatService) UserConnectedStream(roomID, nameUser, action string) error {
+func (s *ChatService) UserConnectedStream(roomID, nameUser, action string, id primitive.ObjectID) error {
 	ctx := context.TODO()
-	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser, action)
+	err := s.roomRepository.UserConnectedStream(ctx, roomID, nameUser, action, id)
 	return err
 }
 

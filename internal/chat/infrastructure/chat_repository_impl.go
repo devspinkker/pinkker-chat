@@ -16,6 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type PubSubService struct {
@@ -31,6 +32,76 @@ func NewRepository(redisClient *redis.Client, MongoClient *mongo.Client) *PubSub
 		subscriptions: map[string]*redis.PubSub{},
 	}
 }
+func (s *PubSubService) SaveMessageTheUserInRoom(id primitive.ObjectID, roomID primitive.ObjectID, message string, saveMessageChan chan error) {
+	nSave := s.redisClient.HSet(context.Background(), "messageFromUser:"+id.Hex()+":inTheRoom:"+roomID.Hex(), time.Now().UnixNano(), message)
+	if nSave.Err() != nil {
+		saveMessageChan <- nSave.Err()
+	}
+	saveMessageChan <- nil
+}
+func (s *PubSubService) MoveMessagesToMongoDB(userID, roomID primitive.ObjectID) error {
+	key := "messageFromUser:" + userID.Hex() + ":inTheRoom:" + roomID.Hex()
+	messages, err := s.redisClient.HGetAll(context.Background(), key).Result()
+	if err != nil {
+		return fmt.Errorf("error retrieving messages from Redis: %v", err)
+	}
+
+	var chatMessages []domain.ChatMessage
+
+	for _, messageJSON := range messages {
+		var chatMessage domain.ChatMessage
+		err := json.Unmarshal([]byte(messageJSON), &chatMessage)
+		if err != nil {
+			return fmt.Errorf("error unmarshalling chat message: %v", err)
+		}
+
+		chatMessages = append(chatMessages, chatMessage)
+	}
+
+	// Crear el documento de historial de mensajes
+	history := domain.HistoryOfMessagesInRoom{
+		ID:       primitive.NewObjectID(),
+		IdUser:   userID,
+		Room:     roomID,
+		Messages: chatMessages,
+	}
+
+	err = s.SaveMessagesHistoryToMongo(history)
+	if err != nil {
+		return fmt.Errorf("error saving messages to MongoDB: %v", err)
+	}
+
+	s.redisClient.Del(context.Background(), key)
+
+	return nil
+}
+
+func (r *PubSubService) SaveMessagesHistoryToMongo(history domain.HistoryOfMessagesInRoom) error {
+	collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("MessageHistory")
+
+	filter := bson.M{
+		"IdUser": history.IdUser,
+		"Room":   history.Room,
+	}
+
+	update := bson.M{
+		"$push": bson.M{
+			"Messages": bson.M{
+				"$each":  history.Messages,
+				"$slice": -200,
+			},
+		},
+	}
+
+	opts := options.Update().SetUpsert(true) // Si no existe, lo inserta
+	_, err := collection.UpdateOne(context.Background(), filter, update, opts)
+	if err != nil {
+		return fmt.Errorf("error updating/inserting message history: %v", err)
+	}
+
+	return nil
+}
+
 func (r *PubSubService) RedisGetModSlowModeStream(Room primitive.ObjectID) (int, error) {
 	value, err := r.redisClient.Get(context.Background(), Room.Hex()+"ModSlowMode").Result()
 	if err == nil {
@@ -76,7 +147,7 @@ func (r *PubSubService) UserExists(ctx context.Context, nameUser string) (bool, 
 	return true, nil
 }
 
-func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUser string, action string) error {
+func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUser string, action string, id primitive.ObjectID) error {
 	session, err := r.MongoClient.StartSession()
 	if err != nil {
 		return err
@@ -98,7 +169,7 @@ func (r *PubSubService) UserConnectedStream(ctx context.Context, roomID, nameUse
 		return errors.New("user does not exist") // Usuario no encontrado
 	}
 
-	err = r.performUserTransaction(ctx, session, roomID, nameUser, action)
+	err = r.performUserTransaction(ctx, session, roomID, nameUser, action, id)
 
 	if err != nil {
 		session.AbortTransaction(ctx)
@@ -146,7 +217,7 @@ func (r *PubSubService) RedisFindMatchingUsersInRoomByPrefix(ctx context.Context
 	return matchingUsers, nil
 }
 
-func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string, action string) error {
+func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string, action string, idUser primitive.ObjectID) error {
 	activeUserRoomsKey := "ActiveUserRooms:" + nameUser // Clave para las salas activas del usuario
 
 	// Verificar si el usuario ya está activo en la sala actual
@@ -182,7 +253,12 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 		if err != nil {
 			return err
 		}
+		err = r.MoveMessagesToMongoDB(idUser, roomIDObj)
+		if err != nil {
+			fmt.Println(err)
+			fmt.Println("paso por aqui el error")
 
+		}
 		return nil
 	}
 
@@ -789,13 +865,7 @@ func (p *PubSubService) GetCommandsFromCache(roomID primitive.ObjectID, commandN
 }
 
 // acciones de enviar el mensaje
-func (s *PubSubService) SaveMessageTheUserInRoom(nameUser string, roomID primitive.ObjectID, message string, saveMessageChan chan error) {
-	nSave := s.redisClient.HSet(context.Background(), "messageFromUser:"+nameUser+":inTheRoom:"+roomID.Hex(), time.Now().UnixNano(), message)
-	if nSave.Err() != nil {
-		saveMessageChan <- nSave.Err()
-	}
-	saveMessageChan <- nil
-}
+
 func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room primitive.ObjectID, message string, RedisCacheSetLastRoomMessagesChan chan error, NameUser string) {
 
 	pipeline := r.redisClient.Pipeline()

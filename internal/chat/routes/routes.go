@@ -45,6 +45,8 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 		roomID := c.Params("roomID")
 		token := c.Params("token", "null")
 		var nameuser string
+		var id primitive.ObjectID
+
 		var verified bool
 		roomIdObj, errinObjectID := primitive.ObjectIDFromHex(roomID)
 		if errinObjectID != nil {
@@ -52,8 +54,13 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			return
 		}
 		if token != "null" {
-			nameuserExtractDataFromToken, _, verifiedToken, err := jwt.ExtractDataFromToken(token)
+			nameuserExtractDataFromToken, idUser, verifiedToken, err := jwt.ExtractDataFromToken(token)
 			if err != nil {
+				return
+			}
+			id, errinObjectID = primitive.ObjectIDFromHex(idUser)
+			if errinObjectID != nil {
+				c.WriteMessage(websocket.TextMessage, []byte("Error con el id de la sala"))
 				return
 			}
 			nameuser = nameuserExtractDataFromToken
@@ -74,7 +81,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			}
 		}
 		if len(nameuser) >= 4 {
-			UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, nameuser, "connect")
+			UserConnectedStreamERR := chatHandler.UserConnectedStream(roomID, nameuser, "connect", id)
 			if UserConnectedStreamERR != nil {
 				c.Close()
 				return
@@ -84,7 +91,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 		if err != nil {
 			if err != redis.Nil {
-				chatHandler.UserConnectedStream(roomID, nameuser, "disconnect")
+				chatHandler.UserConnectedStream(roomID, nameuser, "disconnect", id)
 				c.WriteMessage(websocket.TextMessage, []byte("Error al unirse a la sala"))
 				c.Close()
 				return
@@ -93,7 +100,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 		for i := len(LastRoomMessages) - 1; i >= 0; i-- {
 			err = c.WriteMessage(websocket.TextMessage, []byte(LastRoomMessages[i]))
 			if err != nil {
-				chatHandler.UserConnectedStream(roomID, nameuser, "disconnect")
+				chatHandler.UserConnectedStream(roomID, nameuser, "disconnect", id)
 				c.Close()
 				return
 			}
@@ -102,7 +109,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c)
 			if errReceiveMessageFromRoom != nil {
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
-				chatHandler.UserConnectedStream(roomID, nameuser, "disconnect")
+				chatHandler.UserConnectedStream(roomID, nameuser, "disconnect", id)
 				c.Close()
 				return
 			}
