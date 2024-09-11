@@ -71,6 +71,14 @@ type ChatMessage struct {
 	ResNameUser          string             `json:"ResNameUser"`
 	ResMessage           string             `json:"ResMessage"`
 }
+
+type HistoryOfMessagesInRoom struct {
+	ID       primitive.ObjectID `bson:"_id,omitempty"`
+	IdUser   primitive.ObjectID `bson:"IdUser"`
+	Room     primitive.ObjectID `bson:"Room"`
+	Messages []ChatMessage      `bson:"Messages"`
+}
+
 type Datacommands struct {
 	ID       primitive.ObjectID `json:"id" bson:"_id,omitempty"`
 	Room     primitive.ObjectID `json:"Room" bson:"Room,omitempty"`
