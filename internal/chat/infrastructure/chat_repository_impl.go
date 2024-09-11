@@ -77,7 +77,7 @@ func (s *PubSubService) MoveMessagesToMongoDB(userID, roomID primitive.ObjectID)
 }
 
 func (r *PubSubService) SaveMessagesHistoryToMongo(history domain.HistoryOfMessagesInRoom) error {
-	collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("MessageHistory")
+	collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("HistoryOfMessagesInRoom")
 
 	filter := bson.M{
 		"IdUser": history.IdUser,
@@ -88,7 +88,7 @@ func (r *PubSubService) SaveMessagesHistoryToMongo(history domain.HistoryOfMessa
 		"$push": bson.M{
 			"Messages": bson.M{
 				"$each":  history.Messages,
-				"$slice": -200,
+				"$slice": -20,
 			},
 		},
 	}
