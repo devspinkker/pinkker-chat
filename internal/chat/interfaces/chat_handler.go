@@ -21,8 +21,13 @@ func NewChatHandler(chatService *application.ChatService) *ChatHandler {
 	}
 }
 func (h *ChatHandler) GetMessagesForSecond(c *fiber.Ctx) error {
-	// Obtener el parámetro VodId de la ruta
-	VodIdStr := c.Params("VodId")
+	// Obtener VodId de los parámetros de consulta
+	VodIdStr := c.Query("VodId")
+	if VodIdStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "VodId es requerido",
+		})
+	}
 
 	// Convertir VodId de string a primitive.ObjectID
 	VodId, err := primitive.ObjectIDFromHex(VodIdStr)
@@ -32,9 +37,16 @@ func (h *ChatHandler) GetMessagesForSecond(c *fiber.Ctx) error {
 		})
 	}
 
-	// Obtener los parámetros startTime y endTime
-	startTimeStr := c.Params("startTime")
-	endTimeStr := c.Params("endTime")
+	// Obtener los parámetros de consulta startTime y endTime
+	startTimeStr := c.Query("startTime")
+	endTimeStr := c.Query("endTime")
+
+	// Comprobar que los tiempos no sean vacíos
+	if startTimeStr == "" || endTimeStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "startTime y endTime son requeridos",
+		})
+	}
 
 	// Convertir los parámetros de tiempo de string a time.Time
 	startTime, err := time.Parse(time.RFC3339, startTimeStr)
