@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -39,6 +40,7 @@ func (s *PubSubService) SaveMessageTheUserInRoom(id primitive.ObjectID, roomID p
 	}
 	saveMessageChan <- nil
 }
+
 func (s *PubSubService) MoveMessagesToMongoDB(userID, roomID primitive.ObjectID) error {
 	key := "messageFromUser:" + userID.Hex() + ":inTheRoom:" + roomID.Hex()
 	messages, err := s.redisClient.HGetAll(context.Background(), key).Result()
@@ -88,7 +90,7 @@ func (r *PubSubService) SaveMessagesHistoryToMongo(history domain.HistoryOfMessa
 		"$push": bson.M{
 			"Messages": bson.M{
 				"$each":  history.Messages,
-				"$slice": -20,
+				"$slice": -50,
 			},
 		},
 	}
@@ -253,12 +255,7 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 		if err != nil {
 			return err
 		}
-		err = r.MoveMessagesToMongoDB(idUser, roomIDObj)
-		if err != nil {
-			fmt.Println(err)
-			fmt.Println("paso por aqui el error")
-
-		}
+		r.MoveMessagesToMongoDB(idUser, roomIDObj)
 		return nil
 	}
 
@@ -770,6 +767,7 @@ func (p *PubSubService) PublishCommandInTheRoom(roomID primitive.ObjectID, comma
 			"Moderator": "",
 			"Verified":  VERIFIED,
 		},
+		Timestamp: time.Now(),
 	}
 	chatMessageJSON, err := json.Marshal(chatMessage)
 	if err != nil {
@@ -867,35 +865,165 @@ func (p *PubSubService) GetCommandsFromCache(roomID primitive.ObjectID, commandN
 // acciones de enviar el mensaje
 
 func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room primitive.ObjectID, message string, RedisCacheSetLastRoomMessagesChan chan error, NameUser string) {
-
 	pipeline := r.redisClient.Pipeline()
 
+	// 1. Agregar el mensaje a la lista de mensajes recientes
 	pipeline.LPush(context.Background(), Room.Hex()+"LastMessages", message)
-
 	pipeline.LTrim(context.Background(), Room.Hex()+"LastMessages", 0, 19)
 
+	// 2. Publicar el mensaje en el canal pub/sub
 	pipeline.Publish(context.Background(), Room.Hex(), message).Err()
 
+	// 3. Ejecutar el pipeline
 	_, err := pipeline.Exec(context.Background())
 	if err != nil {
 		RedisCacheSetLastRoomMessagesChan <- err
+		return
 	}
-	userHashKey := "userInformation:" + NameUser + ":inTheRoom:" + Room.Hex()
 
+	// 4. Actualizar la información del usuario
+	userHashKey := "userInformation:" + NameUser + ":inTheRoom:" + Room.Hex()
 	userInfoStr, err := r.RedisCacheGet(userHashKey)
 	if err != nil {
 		RedisCacheSetLastRoomMessagesChan <- err
+		return
 	}
 
 	var userInfo domain.UserInfo
 	if err := json.Unmarshal([]byte(userInfoStr), &userInfo); err != nil {
 		RedisCacheSetLastRoomMessagesChan <- err
+		return
 	}
 
+	// Actualizar el último mensaje enviado por el usuario
 	userInfo.LastMessage = time.Now()
-
 	err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
-	RedisCacheSetLastRoomMessagesChan <- err
+	if err != nil {
+		RedisCacheSetLastRoomMessagesChan <- err
+		return
+	}
+
+	// 5. Agregar el mensaje a la clave para el VOD
+	r.cacheMessagesForVOD(Room, message)
+
+	// Terminar la función sin error
+	RedisCacheSetLastRoomMessagesChan <- nil
+}
+func (r *PubSubService) cacheMessagesForVOD(Room primitive.ObjectID, message string) {
+	vodKey := "MensajesParaElVod:" + Room.Hex()
+	currentTime := time.Now().Unix()
+
+	pipeline := r.redisClient.Pipeline()
+
+	// Agregar el mensaje al SortedSet con el timestamp actual
+	pipeline.ZAdd(context.Background(), vodKey, redis.Z{
+		Score:  float64(currentTime),
+		Member: message,
+	})
+
+	// Limitar los mensajes a 5 por segundo
+	pipeline.ZRemRangeByScore(context.Background(), vodKey, "-inf", fmt.Sprintf("%d", currentTime-1))
+
+	// Establecer un período de expiración (por ejemplo, 5 minutos)
+	pipeline.Expire(context.Background(), vodKey, 5*time.Minute)
+
+	_, err := pipeline.Exec(context.Background())
+	if err != nil {
+		log.Printf("Error caching VOD messages: %v", err)
+		return
+	}
+
+	// Comprobar si ya hay 25 mensajes y, si es así, guardarlos en la base de datos
+	messageCount, err := r.redisClient.ZCard(context.Background(), vodKey).Result()
+	if err != nil {
+		log.Printf("Error counting VOD messages: %v", err)
+		return
+	}
+
+	if messageCount >= 25 {
+		r.saveVODMessages(Room)
+	}
+}
+
+func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
+	// Recuperar los 25 mensajes más recientes de Redis
+	vodKey := "MensajesParaElVod:" + Room.Hex()
+
+	messages, err := r.redisClient.ZRange(context.Background(), vodKey, 0, 24).Result()
+	if err != nil {
+		log.Printf("Error retrieving VOD messages: %v", err)
+		return
+	}
+
+	// Comprobar si hay mensajes para guardar
+	if len(messages) == 0 {
+		log.Printf("No messages to save for room %s", Room.Hex())
+		return
+	}
+
+	// Obtener el ID del VOD asociado al Room
+	IdVod, err := r.GetStreamSummaryById(Room)
+	if err != nil {
+		log.Printf("Error getting VOD ID for room %s: %v", Room.Hex(), err)
+		return
+	}
+
+	// Mapear los mensajes JSON a la estructura ChatMessage
+	var chatMessages []domain.ChatMessage
+	for _, messageJSON := range messages {
+		var chatMessage domain.ChatMessage
+		err := json.Unmarshal([]byte(messageJSON), &chatMessage)
+		if err != nil {
+			log.Printf("Error unmarshalling chat message: %v", err)
+			continue
+		}
+		chatMessages = append(chatMessages, chatMessage)
+	}
+
+	// Usar UpdateOne con upsert para insertar o actualizar el documento
+	vodCollection := r.MongoClient.Database("PINKKER-BACKEND").Collection("VodMessagesHistory")
+	filter := bson.M{"IdVod": IdVod}
+	update := bson.M{
+		"$set": bson.M{
+			"Room":     Room,
+			"Messages": chatMessages,
+		},
+	}
+	opts := options.Update().SetUpsert(true)
+	_, err = vodCollection.UpdateOne(context.Background(), filter, update, opts)
+	if err != nil {
+		log.Printf("Error upserting VOD messages to MongoDB: %v", err)
+		return
+	}
+
+	// Vaciar los mensajes almacenados en Redis después de guardarlos
+	_, err = r.redisClient.ZRemRangeByRank(context.Background(), vodKey, 0, 24).Result()
+	if err != nil {
+		log.Printf("Error clearing VOD messages from Redis: %v", err)
+		return
+	}
+
+	log.Printf("Successfully saved VOD messages for room %s and VOD %s", Room.Hex(), IdVod.Hex())
+}
+
+// Obtener el ID del stream usando GetStreamSummaryById (solo devuelve el _id)
+func (r *PubSubService) GetStreamSummaryById(id primitive.ObjectID) (primitive.ObjectID, error) {
+	GoMongoDBCollStreams := r.MongoClient.Database("PINKKER-BACKEND").Collection("StreamSummary")
+
+	// Filtro para encontrar el stream por el ID y que esté online
+	FindStreamInDb := bson.D{
+		{Key: "Online", Value: true},
+		{Key: "StreamDocumentID", Value: id},
+	}
+
+	// Estructura para capturar solo el _id
+	var result struct {
+		ID primitive.ObjectID `bson:"_id"`
+	}
+
+	// Ejecutar la consulta y decodificar solo el campo _id
+	errCollStreams := GoMongoDBCollStreams.FindOne(context.Background(), FindStreamInDb).Decode(&result)
+	return result.ID, errCollStreams
 }
 
 func (r *PubSubService) RedisCacheAddUniqueUserInteraction(Room primitive.ObjectID, NameUser string, RedisCacheAddUniqueUserInteractionChan chan error) {

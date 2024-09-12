@@ -112,6 +112,7 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 		ResNameUser:          ResNameUser,
 		ResMessage:           ResMsj,
 		Id:                   primitive.NewObjectID(),
+		Timestamp:            time.Now(),
 	}
 
 	chatMessageJSON, err := json.Marshal(chatMessage)
