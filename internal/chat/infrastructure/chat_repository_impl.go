@@ -36,34 +36,47 @@ func (r *PubSubService) GetMessagesForSecond(IdVod primitive.ObjectID, startTime
 	// Definir la colección de mensajes del VOD
 	vodCollection := r.MongoClient.Database("PINKKER-BACKEND").Collection("VodMessagesHistory")
 
-	// Crear el filtro para encontrar el VOD específico por su IdVod
-	filter := bson.M{"IdVod": IdVod}
-
-	// Definir la proyección para devolver solo los mensajes cuyo Timestamp esté en el rango especificado
-	projection := bson.M{
-		"Messages": bson.M{
-			"$filter": bson.M{
-				"input": "$Messages",
-				"as":    "message",
-				"cond": bson.M{
-					"$and": []bson.M{
-						{"$gte": bson.M{"$$message.Timestamp": startTime}},
-						{"$lt": bson.M{"$$message.Timestamp": endTime}},
-					},
-				},
-			},
-		},
+	// Crear el pipeline de agregación
+	pipeline := mongo.Pipeline{
+		// Match para encontrar el documento con el IdVod dado
+		bson.D{{Key: "$match", Value: bson.D{{Key: "IdVod", Value: IdVod}}}},
+		// Unwind para descomponer el array de mensajes
+		bson.D{{Key: "$unwind", Value: "$Messages"}},
+		// Match para filtrar mensajes dentro del rango de tiempo
+		bson.D{{Key: "$match", Value: bson.D{
+			{Key: "Messages.Timestamp", Value: bson.D{
+				{Key: "$gte", Value: startTime},
+				{Key: "$lt", Value: endTime},
+			}},
+		}}},
+		// Agrupar de nuevo en el formato deseado
+		bson.D{{Key: "$group", Value: bson.D{
+			{Key: "_id", Value: "$IdVod"},
+			{Key: "Messages", Value: bson.D{{Key: "$push", Value: "$Messages"}}},
+		}}},
 	}
 
-	// Ejecutar la consulta
-	var result domain.VodMessagesHistory
-	err := vodCollection.FindOne(context.Background(), filter, options.FindOne().SetProjection(projection)).Decode(&result)
+	// Ejecutar el pipeline de agregación
+	cursor, err := vodCollection.Aggregate(context.Background(), pipeline)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving messages for VOD: %v", err)
 	}
 
+	// Decodificar el resultado
+	var results []struct {
+		Messages []domain.ChatMessage `bson:"Messages"`
+	}
+
+	if err = cursor.All(context.Background(), &results); err != nil {
+		return nil, fmt.Errorf("error decoding messages: %v", err)
+	}
+
+	if len(results) == 0 {
+		return nil, nil
+	}
+
 	// Devolver los mensajes filtrados
-	return result.Messages, nil
+	return results[0].Messages, nil
 }
 
 func (s *PubSubService) SaveMessageTheUserInRoom(id primitive.ObjectID, roomID primitive.ObjectID, message string, saveMessageChan chan error) {
