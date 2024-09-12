@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -33,6 +32,40 @@ func NewRepository(redisClient *redis.Client, MongoClient *mongo.Client) *PubSub
 		subscriptions: map[string]*redis.PubSub{},
 	}
 }
+func (r *PubSubService) GetMessagesForSecond(IdVod primitive.ObjectID, startTime time.Time, endTime time.Time) ([]domain.ChatMessage, error) {
+	// Definir la colección de mensajes del VOD
+	vodCollection := r.MongoClient.Database("PINKKER-BACKEND").Collection("VodMessagesHistory")
+
+	// Crear el filtro para encontrar el VOD específico por su IdVod
+	filter := bson.M{"IdVod": IdVod}
+
+	// Definir la proyección para devolver solo los mensajes cuyo Timestamp esté en el rango especificado
+	projection := bson.M{
+		"Messages": bson.M{
+			"$filter": bson.M{
+				"input": "$Messages",
+				"as":    "message",
+				"cond": bson.M{
+					"$and": []bson.M{
+						{"$gte": bson.M{"$$message.Timestamp": startTime}},
+						{"$lt": bson.M{"$$message.Timestamp": endTime}},
+					},
+				},
+			},
+		},
+	}
+
+	// Ejecutar la consulta
+	var result domain.VodMessagesHistory
+	err := vodCollection.FindOne(context.Background(), filter, options.FindOne().SetProjection(projection)).Decode(&result)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving messages for VOD: %v", err)
+	}
+
+	// Devolver los mensajes filtrados
+	return result.Messages, nil
+}
+
 func (s *PubSubService) SaveMessageTheUserInRoom(id primitive.ObjectID, roomID primitive.ObjectID, message string, saveMessageChan chan error) {
 	nSave := s.redisClient.HSet(context.Background(), "messageFromUser:"+id.Hex()+":inTheRoom:"+roomID.Hex(), time.Now().UnixNano(), message)
 	if nSave.Err() != nil {
@@ -911,36 +944,47 @@ func (r *PubSubService) RedisCacheSetLastRoomMessagesAndPublishMessage(Room prim
 }
 func (r *PubSubService) cacheMessagesForVOD(Room primitive.ObjectID, message string) {
 	vodKey := "MensajesParaElVod:" + Room.Hex()
-	currentTime := time.Now().Unix()
+	currentTime := time.Now().Unix() // Current time in seconds
+	secondStart := currentTime       // Start of the current second, which is the same as currentTime if in seconds
 
 	pipeline := r.redisClient.Pipeline()
 
-	// Agregar el mensaje al SortedSet con el timestamp actual
-	pipeline.ZAdd(context.Background(), vodKey, redis.Z{
-		Score:  float64(currentTime),
-		Member: message,
-	})
+	// Contar los mensajes en el segundo actual
+	pipeline.ZCount(context.Background(), vodKey, fmt.Sprintf("%d", secondStart), fmt.Sprintf("%d", secondStart+1))
 
-	// Limitar los mensajes a 5 por segundo
-	pipeline.ZRemRangeByScore(context.Background(), vodKey, "-inf", fmt.Sprintf("%d", currentTime-1))
+	// Contar el total de mensajes en el Sorted Set
+	pipeline.ZCard(context.Background(), vodKey)
 
-	// Establecer un período de expiración (por ejemplo, 5 minutos)
-	pipeline.Expire(context.Background(), vodKey, 5*time.Minute)
-
-	_, err := pipeline.Exec(context.Background())
+	cmds, err := pipeline.Exec(context.Background())
 	if err != nil {
-		log.Printf("Error caching VOD messages: %v", err)
 		return
+	}
+
+	// Obtener el conteo de mensajes en el segundo actual
+	messageCountInSecond, err := cmds[0].(*redis.IntCmd).Result()
+	if err != nil {
+		return
+	}
+
+	// Obtener el conteo total de mensajes
+	totalMessageCount, err := cmds[1].(*redis.IntCmd).Result()
+	if err != nil {
+		return
+	}
+
+	if messageCountInSecond < 5 && totalMessageCount < 25 {
+		// Agregar el mensaje al SortedSet con el timestamp actual
+		_, err = r.redisClient.ZAdd(context.Background(), vodKey, redis.Z{
+			Score:  float64(currentTime),
+			Member: message,
+		}).Result()
+		if err != nil {
+			return
+		}
 	}
 
 	// Comprobar si ya hay 25 mensajes y, si es así, guardarlos en la base de datos
-	messageCount, err := r.redisClient.ZCard(context.Background(), vodKey).Result()
-	if err != nil {
-		log.Printf("Error counting VOD messages: %v", err)
-		return
-	}
-
-	if messageCount >= 25 {
+	if totalMessageCount >= 25 {
 		r.saveVODMessages(Room)
 	}
 }
@@ -951,20 +995,17 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 
 	messages, err := r.redisClient.ZRange(context.Background(), vodKey, 0, 24).Result()
 	if err != nil {
-		log.Printf("Error retrieving VOD messages: %v", err)
 		return
 	}
 
 	// Comprobar si hay mensajes para guardar
 	if len(messages) == 0 {
-		log.Printf("No messages to save for room %s", Room.Hex())
 		return
 	}
 
 	// Obtener el ID del VOD asociado al Room
 	IdVod, err := r.GetStreamSummaryById(Room)
 	if err != nil {
-		log.Printf("Error getting VOD ID for room %s: %v", Room.Hex(), err)
 		return
 	}
 
@@ -974,7 +1015,6 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 		var chatMessage domain.ChatMessage
 		err := json.Unmarshal([]byte(messageJSON), &chatMessage)
 		if err != nil {
-			log.Printf("Error unmarshalling chat message: %v", err)
 			continue
 		}
 		chatMessages = append(chatMessages, chatMessage)
@@ -992,18 +1032,14 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 	opts := options.Update().SetUpsert(true)
 	_, err = vodCollection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
-		log.Printf("Error upserting VOD messages to MongoDB: %v", err)
 		return
 	}
 
 	// Vaciar los mensajes almacenados en Redis después de guardarlos
 	_, err = r.redisClient.ZRemRangeByRank(context.Background(), vodKey, 0, 24).Result()
 	if err != nil {
-		log.Printf("Error clearing VOD messages from Redis: %v", err)
 		return
 	}
-
-	log.Printf("Successfully saved VOD messages for room %s and VOD %s", Room.Hex(), IdVod.Hex())
 }
 
 // Obtener el ID del stream usando GetStreamSummaryById (solo devuelve el _id)

@@ -4,6 +4,7 @@ import (
 	"PINKKER-CHAT/internal/chat/application"
 	"PINKKER-CHAT/internal/chat/domain"
 	"context"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -19,6 +20,51 @@ func NewChatHandler(chatService *application.ChatService) *ChatHandler {
 		chatService: chatService,
 	}
 }
+func (h *ChatHandler) GetMessagesForSecond(c *fiber.Ctx) error {
+	// Obtener el parámetro VodId de la ruta
+	VodIdStr := c.Params("VodId")
+
+	// Convertir VodId de string a primitive.ObjectID
+	VodId, err := primitive.ObjectIDFromHex(VodIdStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Formato de VodId inválido",
+		})
+	}
+
+	// Obtener los parámetros startTime y endTime
+	startTimeStr := c.Params("startTime")
+	endTimeStr := c.Params("endTime")
+
+	// Convertir los parámetros de tiempo de string a time.Time
+	startTime, err := time.Parse(time.RFC3339, startTimeStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Formato de startTime inválido, debe ser RFC3339",
+		})
+	}
+
+	endTime, err := time.Parse(time.RFC3339, endTimeStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Formato de endTime inválido, debe ser RFC3339",
+		})
+	}
+
+	// Obtener los mensajes del servicio en el rango de tiempo solicitado
+	messages, err := h.chatService.GetMessagesForSecond(VodId, startTime, endTime)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Error al obtener los mensajes: " + err.Error(),
+		})
+	}
+
+	// Devolver los mensajes en el rango especificado
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"messages": messages,
+	})
+}
+
 func (h *ChatHandler) RedisFindMatchingUsersInRoomByPrefix(c *fiber.Ctx) error {
 	var req domain.RedisFindActiveUserInRoomByNamePrefix
 	if err := c.BodyParser(&req); err != nil {
