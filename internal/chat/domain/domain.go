@@ -70,11 +70,18 @@ type ChatMessage struct {
 	Id                   primitive.ObjectID `json:"Id"`
 	ResNameUser          string             `json:"ResNameUser"`
 	ResMessage           string             `json:"ResMessage"`
+	Timestamp            time.Time          `bson:"Timestamp"`
 }
 
 type HistoryOfMessagesInRoom struct {
 	ID       primitive.ObjectID `bson:"_id,omitempty"`
 	IdUser   primitive.ObjectID `bson:"IdUser"`
+	Room     primitive.ObjectID `bson:"Room"`
+	Messages []ChatMessage      `bson:"Messages"`
+}
+type VodMessagesHistory struct {
+	ID       primitive.ObjectID `bson:"_id,omitempty"`
+	IdVod    primitive.ObjectID `bson:"IdVod"`
 	Room     primitive.ObjectID `bson:"Room"`
 	Messages []ChatMessage      `bson:"Messages"`
 }
