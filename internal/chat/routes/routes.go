@@ -30,6 +30,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 	})
 
 	app.Post("/GetInfoUserInRoom", middleware.UseExtractor(), chatHandler.GetInfoUserInRoom)
+	app.Get("/GetMessagesForSecond", chatHandler.GetMessagesForSecond)
 	// chat actions
 	app.Post("/actionsChatStream", middleware.UseExtractor(), chatHandler.Actions)
 	app.Post("/actionsModeratorChatStream", middleware.UseExtractor(), chatHandler.ActionModerator)

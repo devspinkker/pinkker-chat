@@ -26,6 +26,10 @@ func NewChatService(roomRepository *infrastructure.PubSubService) *ChatService {
 		roomRepository: roomRepository,
 	}
 }
+func (s *ChatService) GetMessagesForSecond(IdVod primitive.ObjectID, startTime time.Time, endTime time.Time) ([]domain.ChatMessage, error) {
+	return s.roomRepository.GetMessagesForSecond(IdVod, startTime, endTime)
+
+}
 
 // acciones los recibir el mensajes
 func (s *ChatService) SubscribeToRoom(roomID string) *redis.PubSub {
