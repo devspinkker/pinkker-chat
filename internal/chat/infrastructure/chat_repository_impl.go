@@ -1024,7 +1024,9 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 
 	// Obtener el ID del VOD asociado al Room
 	IdVod, err := r.GetStreamSummaryById(Room)
+	fmt.Println(IdVod)
 	if err != nil {
+		fmt.Errorf(err.Error())
 		return
 	}
 
