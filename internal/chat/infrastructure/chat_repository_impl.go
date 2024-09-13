@@ -1024,9 +1024,8 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 
 	// Obtener el ID del VOD asociado al Room
 	IdVod, err := r.GetStreamSummaryById(Room)
-	fmt.Println(IdVod)
 	if err != nil {
-		fmt.Errorf(err.Error())
+
 		return
 	}
 
@@ -1053,8 +1052,12 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 	opts := options.Update().SetUpsert(true)
 	_, err = vodCollection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
+		fmt.Println(err.Error())
+		fmt.Println("error add los menskjes")
+
 		return
 	}
+	fmt.Println("error add los menskjes")
 
 	// Vaciar los mensajes almacenados en Redis después de guardarlos
 	_, err = r.redisClient.ZRemRangeByRank(context.Background(), vodKey, 0, 24).Result()
