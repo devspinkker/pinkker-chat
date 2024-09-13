@@ -992,20 +992,26 @@ func (r *PubSubService) cacheMessagesForVOD(Room primitive.ObjectID, message str
 			Member: message,
 		}).Result()
 		if err != nil {
+			fmt.Println("un error")
+			fmt.Println(err)
+
 			return
 		}
 	}
 
 	// Comprobar si ya hay 25 mensajes y, si es así, guardarlos en la base de datos
+	fmt.Println(totalMessageCount)
 	if totalMessageCount >= 25 {
+
 		r.saveVODMessages(Room)
 	}
 }
 
 func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
+
 	// Recuperar los 25 mensajes más recientes de Redis
 	vodKey := "MensajesParaElVod:" + Room.Hex()
-
+	fmt.Println(vodKey)
 	messages, err := r.redisClient.ZRange(context.Background(), vodKey, 0, 24).Result()
 	if err != nil {
 		return
@@ -1053,6 +1059,8 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 	if err != nil {
 		return
 	}
+	fmt.Println("aalmacenados todo ok")
+
 }
 
 // Obtener el ID del stream usando GetStreamSummaryById (solo devuelve el _id)
