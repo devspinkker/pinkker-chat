@@ -1053,8 +1053,6 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 	result, err := vodCollection.UpdateOne(context.Background(), filter, update, opts)
 	fmt.Println(result)
 	if err != nil {
-		fmt.Println(err.Error())
-		fmt.Println("error add los menskjes")
 		return
 	}
 
