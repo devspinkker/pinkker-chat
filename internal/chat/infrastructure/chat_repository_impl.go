@@ -32,10 +32,10 @@ func NewRepository(redisClient *redis.Client, MongoClient *mongo.Client) *PubSub
 		subscriptions: map[string]*redis.PubSub{},
 	}
 }
-func (r *PubSubService) GetMessagesForSecond(IdVod primitive.ObjectID, startTime time.Time, endTime time.Time) ([]domain.ChatMessage, error) {
+func (r *PubSubService) GetMessagesForSecond(IdVod primitive.ObjectID, startTime time.Time) ([]domain.ChatMessage, error) {
 	// Definir la colección de mensajes del VOD
 	vodCollection := r.MongoClient.Database("PINKKER-BACKEND").Collection("VodMessagesHistory")
-
+	endTime := startTime.Add(4 * time.Second)
 	// Crear el pipeline de agregación
 	pipeline := mongo.Pipeline{
 		// Match para encontrar el documento con el IdVod dado

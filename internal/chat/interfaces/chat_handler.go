@@ -39,10 +39,9 @@ func (h *ChatHandler) GetMessagesForSecond(c *fiber.Ctx) error {
 
 	// Obtener los parámetros de consulta startTime y endTime
 	startTimeStr := c.Query("startTime")
-	endTimeStr := c.Query("endTime")
 
 	// Comprobar que los tiempos no sean vacíos
-	if startTimeStr == "" || endTimeStr == "" {
+	if startTimeStr == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "startTime y endTime son requeridos",
 		})
@@ -56,15 +55,8 @@ func (h *ChatHandler) GetMessagesForSecond(c *fiber.Ctx) error {
 		})
 	}
 
-	endTime, err := time.Parse(time.RFC3339, endTimeStr)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Formato de endTime inválido, debe ser RFC3339",
-		})
-	}
-
 	// Obtener los mensajes del servicio en el rango de tiempo solicitado
-	messages, err := h.chatService.GetMessagesForSecond(VodId, startTime, endTime)
+	messages, err := h.chatService.GetMessagesForSecond(VodId, startTime)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Error al obtener los mensajes: " + err.Error(),
