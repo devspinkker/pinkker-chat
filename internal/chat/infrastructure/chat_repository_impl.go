@@ -992,15 +992,10 @@ func (r *PubSubService) cacheMessagesForVOD(Room primitive.ObjectID, message str
 			Member: message,
 		}).Result()
 		if err != nil {
-			fmt.Println("un error")
-			fmt.Println(err)
-
 			return
 		}
 	}
 
-	// Comprobar si ya hay 25 mensajes y, si es así, guardarlos en la base de datos
-	fmt.Println(totalMessageCount)
 	if totalMessageCount >= 25 {
 
 		r.saveVODMessages(Room)
@@ -1011,7 +1006,6 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 
 	// Recuperar los 25 mensajes más recientes de Redis
 	vodKey := "MensajesParaElVod:" + Room.Hex()
-	fmt.Println(vodKey)
 	messages, err := r.redisClient.ZRange(context.Background(), vodKey, 0, 24).Result()
 	if err != nil {
 		return
@@ -1028,7 +1022,6 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 
 		return
 	}
-
 	// Mapear los mensajes JSON a la estructura ChatMessage
 	var chatMessages []domain.ChatMessage
 	for _, messageJSON := range messages {
@@ -1045,14 +1038,18 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 	filter := bson.M{"IdVod": IdVod}
 	update := bson.M{
 		"$set": bson.M{
-			"Room":     Room,
-			"Messages": chatMessages,
+			"Room": Room,
+		},
+		"$push": bson.M{
+			"Messages": bson.M{
+				"$each": chatMessages,
+			},
 		},
 	}
 	opts := options.Update().SetUpsert(true)
-	result, err := vodCollection.UpdateOne(context.Background(), filter, update, opts)
-	fmt.Println(result)
+	_, err = vodCollection.UpdateOne(context.Background(), filter, update, opts)
 	if err != nil {
+		fmt.Println("Error al actualizar VODMessagesHistory:", err)
 		return
 	}
 
@@ -1061,7 +1058,6 @@ func (r *PubSubService) saveVODMessages(Room primitive.ObjectID) {
 	if err != nil {
 		return
 	}
-	fmt.Println("aalmacenados todo ok")
 
 }
 

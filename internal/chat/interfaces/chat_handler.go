@@ -399,7 +399,10 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
 				_, _, err := c.ReadMessage()
 				if err != nil {
 					h.chatService.CloseSubscription(sub)
-					c.Close()
+					if c != nil {
+						c.Close()
+					}
+
 					return
 				}
 			}
@@ -429,7 +432,9 @@ func (h *ChatHandler) ReceiveMessageActionMessages(c *websocket.Conn) error {
 				_, _, err := c.ReadMessage()
 				if err != nil {
 					h.chatService.CloseSubscription(sub)
-					c.Close()
+					if c != nil {
+						c.Close()
+					}
 					return
 				}
 			}
