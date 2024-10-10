@@ -66,8 +66,6 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 	PRIME := config.PINKKERPRIME()
 
 	currentEmblemasChat := userInfo.EmblemasChat
-	fmt.Println(userInfo.EmblemasChat)
-	fmt.Println(userInfo.PinkkerPrime)
 
 	if verified {
 		currentEmblemasChat["Verified"] = VERIFIED
@@ -498,6 +496,7 @@ func (s *ChatService) ModeratorActionunVip(action domain.ModeratorAction, verifi
 }
 func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, NameUser string, verified bool) error {
 	roomID := action.Room
+
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, NameUser, verified)
 	if err != nil {
 		return err

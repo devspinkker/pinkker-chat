@@ -1089,6 +1089,7 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 		return err
 	}
 	streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
+	PinkkerPrime, _ := r.IsPinkkerPrimeActive(nameUser)
 
 	userHashKey := "userInformation:" + nameUser + ":inTheRoom:" + roomID.Hex()
 	userFields := map[string]interface{}{
@@ -1104,6 +1105,7 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 		"Room":                 userInfo.Room,
 		"LastMessage":          userInfo.LastMessage,
 		"StreamerChannelOwner": streamerChannelOwner,
+		"PinkkerPrime ":        PinkkerPrime,
 	}
 
 	err = r.RedisCacheSetUpdata(userHashKey, userFields)
