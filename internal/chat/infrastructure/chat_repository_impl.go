@@ -564,6 +564,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		if err != nil {
 			roomExists = false
 		} else {
+
 			roomExists = true
 
 			userInfo = domain.UserInfo{
@@ -1352,12 +1353,14 @@ func (r *PubSubService) GetInfoUserInRoomSpeci(nameUser string, getInfoUserInRoo
 
 	if cursor.Next(context.Background()) {
 		if err := cursor.Decode(&room); err != nil {
-			return room, err
+			return nil, err
 		}
+	} else {
+		return nil, fmt.Errorf("no room found for user %s in room %s", nameUser, getInfoUserInRoom.Hex())
 	}
 
 	if err := cursor.Err(); err != nil {
-		return room, err
+		return nil, err
 	}
 
 	return room, nil

@@ -383,12 +383,12 @@ func (s *ChatService) ModeratorActionBaneado(action domain.ModeratorAction, veri
 }
 func (s *ChatService) ModeratorActionModerator(action domain.ModeratorAction, verified bool) error {
 	roomID := action.Room
-	fmt.Println("ANTES")
+	fmt.Println("POR")
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, action.ActionAgainst, verified)
 	if err != nil {
 		return err
 	}
-	fmt.Println("DESPUES")
+	fmt.Println("que")
 
 	if userInfo.Moderator {
 		return nil
@@ -505,6 +505,7 @@ func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, Nam
 	if err != nil {
 		return err
 	}
+	fmt.Println("QUE")
 
 	// modificarlo al usuariofv
 	if action.Color != "" {
