@@ -57,6 +57,7 @@ type InfoUser struct {
 
 type ChatMessage struct {
 	NameUser             string             `json:"nameUser"`
+	PinkkerPrime         bool               `json:"PinkkerPrime"`
 	Color                string             `json:"Color" bson:"Color"`
 	Identidad            string             `json:"Identidad" bson:"Identidad"`
 	Message              string             `json:"message"`

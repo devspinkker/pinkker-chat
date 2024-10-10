@@ -1102,7 +1102,7 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 		currentEmblemasChat["Verified"] = ""
 	}
 
-	if userInfo.PinkkerPrime {
+	if PinkkerPrime {
 		currentEmblemasChat["PinkkerPrime"] = PRIME
 	} else {
 		currentEmblemasChat["PinkkerPrime"] = ""

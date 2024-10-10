@@ -132,6 +132,7 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 		EmblemasChat:         currentEmblemasChat,
 		Identidad:            userInfo.Identidad,
 		StreamerChannelOwner: userInfo.StreamerChannelOwner,
+		PinkkerPrime:         userInfo.PinkkerPrime,
 		ResNameUser:          ResNameUser,
 		ResMessage:           ResMsj,
 		Id:                   primitive.NewObjectID(),
@@ -382,10 +383,13 @@ func (s *ChatService) ModeratorActionBaneado(action domain.ModeratorAction, veri
 }
 func (s *ChatService) ModeratorActionModerator(action domain.ModeratorAction, verified bool) error {
 	roomID := action.Room
+	fmt.Println("ANTES")
 	userInfo, err := s.roomRepository.GetUserInfo(roomID, action.ActionAgainst, verified)
 	if err != nil {
 		return err
 	}
+	fmt.Println("DESPUES")
+
 	if userInfo.Moderator {
 		return nil
 	}
@@ -502,7 +506,7 @@ func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, Nam
 		return err
 	}
 
-	// modificarlo al usuario
+	// modificarlo al usuariofv
 	if action.Color != "" {
 		userInfo.Color = action.Color
 	}
