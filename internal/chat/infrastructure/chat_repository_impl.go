@@ -402,12 +402,10 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 	randomIndex := rand.Intn(len(colors))
 	randomColor := colors[randomIndex]
 	var InsertuserInfoCollection bool = false
-	streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
-	// pinkkerPrime, _ := r.IsPinkkerPrimeActive(nameUser)
 	defaultUserFields := map[string]interface{}{
-		"Room":  roomID,      // primitive.ObjectID
-		"Color": randomColor, //string
-		// "PinkkerPrime":     pinkkerPrime,
+		"Room":             roomID,      // primitive.ObjectID
+		"Color":            randomColor, //string
+		"PinkkerPrime":     false,
 		"Vip":              false,
 		"Moderator":        false,
 		"Subscription":     primitive.ObjectID{},
@@ -421,7 +419,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		},
 		"Identidad":            "",
 		"Following":            domain.FollowInfo{},
-		"StreamerChannelOwner": streamerChannelOwner,
+		"StreamerChannelOwner": false,
 		"LastMessage":          time.Now(),
 	}
 
@@ -606,7 +604,8 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			} else {
 				userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
 			}
-
+			pinkkerPrime, _ := r.IsPinkkerPrimeActive(nameUser)
+			userInfo.PinkkerPrime = pinkkerPrime
 			err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
 			if err != nil {
 				return domain.UserInfo{}, err
@@ -667,6 +666,8 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				return domain.UserInfo{}, err
 			}
 		}
+		pinkkerPrime, _ := r.IsPinkkerPrimeActive(nameUser)
+		userInfo.PinkkerPrime = pinkkerPrime
 		err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
 		if err != nil {
 			return domain.UserInfo{}, err
@@ -1047,6 +1048,7 @@ func (r *PubSubService) GetStreamByIdUser(IdUser primitive.ObjectID) (domain.Str
 	return Stream, err
 }
 func (r *PubSubService) RedisCacheSetUserInfo(userHashKey string, userInfo domain.UserInfo) error {
+
 	userFieldsJSON, err := json.Marshal(userInfo)
 	if err != nil {
 		return err

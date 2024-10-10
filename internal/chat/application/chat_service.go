@@ -62,14 +62,24 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 	if err != nil {
 		return err
 	}
+	VERIFIED := config.PARTNER()
+	PRIME := config.PINKKERPRIME()
+
+	currentEmblemasChat := userInfo.EmblemasChat
+
 	if verified {
-		VERIFIED := config.PARTNER()
-		userInfo.EmblemasChat = map[string]string{
-			"Vip":       "",
-			"Moderator": "",
-			"Verified":  VERIFIED,
-		}
+		currentEmblemasChat["Verified"] = VERIFIED
+	} else {
+		currentEmblemasChat["Verified"] = ""
 	}
+
+	if userInfo.PinkkerPrime {
+		currentEmblemasChat["PinkkerPrime"] = PRIME
+	} else {
+		currentEmblemasChat["PinkkerPrime"] = ""
+	}
+
+	userInfo.EmblemasChat = currentEmblemasChat
 
 	if !userInfo.StreamerChannelOwner {
 		if userInfo.Baneado {
