@@ -55,7 +55,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			return
 		}
 		if token != "null" {
-			nameuserExtractDataFromToken, idUser, verifiedToken, err := jwt.ExtractDataFromToken(token)
+			nameuserExtractDataFromToken, idUser, partner, err := jwt.ExtractDataFromToken(token)
 			if err != nil {
 				return
 			}
@@ -65,7 +65,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 				return
 			}
 			nameuser = nameuserExtractDataFromToken
-			verified = verifiedToken
+			verified = partner
 
 		}
 

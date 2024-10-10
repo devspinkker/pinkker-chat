@@ -62,6 +62,15 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 	if err != nil {
 		return err
 	}
+	if verified {
+		VERIFIED := config.PARTNER()
+		userInfo.EmblemasChat = map[string]string{
+			"Vip":       "",
+			"Moderator": "",
+			"Verified":  VERIFIED,
+		}
+	}
+
 	if !userInfo.StreamerChannelOwner {
 		if userInfo.Baneado {
 			return errors.New("baneado")
