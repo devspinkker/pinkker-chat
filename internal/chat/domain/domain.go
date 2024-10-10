@@ -8,10 +8,11 @@ import (
 )
 
 type UserInfo struct {
-	Room                 primitive.ObjectID
-	Color                string
-	Vip                  bool
-	Verified             bool
+	Room         primitive.ObjectID
+	Color        string
+	Vip          bool
+	PinkkerPrime bool
+
 	Moderator            bool
 	Subscription         primitive.ObjectID
 	SubscriptionInfo     SubscriptionInfo

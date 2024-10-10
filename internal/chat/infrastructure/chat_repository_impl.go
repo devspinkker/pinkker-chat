@@ -403,11 +403,12 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 	randomColor := colors[randomIndex]
 	var InsertuserInfoCollection bool = false
 	streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
+	// pinkkerPrime, _ := r.IsPinkkerPrimeActive(nameUser)
 	defaultUserFields := map[string]interface{}{
-		"Room":             roomID,      // primitive.ObjectID
-		"Color":            randomColor, //string
+		"Room":  roomID,      // primitive.ObjectID
+		"Color": randomColor, //string
+		// "PinkkerPrime":     pinkkerPrime,
 		"Vip":              false,
-		"Verified":         verified, // bool
 		"Moderator":        false,
 		"Subscription":     primitive.ObjectID{},
 		"SubscriptionInfo": domain.SubscriptionInfo{},
@@ -420,7 +421,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		},
 		"Identidad":            "",
 		"Following":            domain.FollowInfo{},
-		"StreamerChannelOwner": streamerChannelOwner, //bool
+		"StreamerChannelOwner": streamerChannelOwner,
 		"LastMessage":          time.Now(),
 	}
 
@@ -515,14 +516,9 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		} else {
 			userInfo.Color = "blue"
 		}
-		userInfo.Verified = verified
-		if verified {
-			VERIFIED := config.PARTNER()
-			defaultUserFields["EmblemasChat"] = map[string]string{
-				"Vip":       "",
-				"Moderator": "",
-				"Verified":  VERIFIED,
-			}
+		defaultUserFields["EmblemasChat"] = map[string]string{
+			"Vip":       "",
+			"Moderator": "",
 		}
 		emblemasChatInterface, ok := storedUserFields["EmblemasChat"].(map[string]interface{})
 
@@ -559,121 +555,64 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		err = Collection.FindOne(context.Background(), filter).Decode(&infoUser)
 		if err == mongo.ErrNoDocuments {
 			InsertuserInfoCollection = true
-			// deberia creaar la info del chat en cuanto se subscribe
 
 		} else if err != nil {
 			return userInfo, err
 		}
 		roomExists := false
-		for _, room := range infoUser.Rooms {
-			if room["Room"] == roomID {
-				roomExists = true
-				valor, ok := room["EmblemasChat"].(map[string]interface{})
-				if !ok {
-					fmt.Println("La clave 'EmblemasChat' no tiene el tipo de mapa esperado.")
-				}
+		userInfoRoom, err := r.GetInfoUserInRoomSpeci(nameUser, roomID)
+		if err != nil {
+			roomExists = false
+		} else {
+			roomExists = true
 
-				userInfo = domain.UserInfo{
-					Room:      roomID,
-					Color:     room["Color"].(string),
-					Vip:       room["Vip"].(bool),
-					Moderator: room["Moderator"].(bool),
-					Verified:  room["Verified"].(bool),
-					Baneado:   room["Baneado"].(bool),
-				}
-				if identidad, ok := room["Identidad"].(string); ok {
-					userInfo.Identidad = identidad
-				} else {
-					userInfo.Identidad = ""
-
-				}
-				userInfo.LastMessage = time.Now()
-				followingInfoMap, ok := room["Following"].(map[string]interface{})
-				if ok {
-					followingInfo := domain.FollowInfo{}
-
-					if sinceTime, ok := followingInfoMap["since"].(time.Time); ok {
-						followingInfo.Since = sinceTime
-					}
-
-					if notificationsBool, ok := followingInfoMap["notifications"].(bool); ok {
-						followingInfo.Notifications = notificationsBool
-					}
-
-					if emailString, ok := followingInfoMap["Email"].(string); ok {
-						followingInfo.Email = emailString
-					}
-
-					userInfo.Following = followingInfo
-				} else {
-					userInfo.Following = domain.FollowInfo{}
-				}
-				if owner, ok := room["StreamerChannelOwner"].(bool); ok {
-					userInfo.StreamerChannelOwner = owner
-				} else {
-					streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
-					userInfo.StreamerChannelOwner = streamerChannelOwner
-				}
-				subscriptionID, ok := room["Subscription"].(primitive.ObjectID)
-				if !ok {
-					subscriptionID = primitive.NilObjectID
-				}
-				userInfo.Subscription = subscriptionID
-				userInfo.Subscription = subscriptionID
-				if TimeOutInterface, ok := room["TimeOut"]; ok {
-					if TimeOutdAgo, ok := TimeOutInterface.(time.Time); ok {
-						userInfo.TimeOut = TimeOutdAgo
-					} else {
-						userInfo.TimeOut = time.Now()
-					}
-				} else {
-					userInfo.TimeOut = time.Now()
-				}
-				if verified {
-					VERIFIED := config.PARTNER()
-					userInfo.EmblemasChat = map[string]string{
-						"Vip":       valor["Vip"].(string),
-						"Moderator": valor["Moderator"].(string),
-						"Verified":  VERIFIED,
-					}
-				} else {
-					userInfo.EmblemasChat = map[string]string{
-						"Vip":       valor["Vip"].(string),
-						"Moderator": valor["Moderator"].(string),
-						"Verified":  valor["Verified"].(string),
-					}
-				}
-
-				subscription, err := r.getSubscriptionByID(subscriptionID)
-
-				if err == nil {
-					// Se encontró el documento de suscripción
-					subscriptionInfo := domain.SubscriptionInfo{
-						ID:                   subscription.ID,
-						SubscriptionNameUser: subscription.SubscriptionNameUser,
-						SourceUserID:         subscription.SourceUserID,
-						DestinationUserID:    subscription.DestinationUserID,
-						SubscriptionStart:    subscription.SubscriptionStart,
-						SubscriptionEnd:      subscription.SubscriptionEnd,
-						MonthsSubscribed:     subscription.MonthsSubscribed,
-						Notified:             subscription.Notified,
-						Text:                 subscription.Text,
-					}
-
-					userInfo.SubscriptionInfo = subscriptionInfo
-				} else if err == mongo.ErrNoDocuments {
-					userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
-				} else {
-					userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
-				}
-
-				err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
-				if err != nil {
-					return domain.UserInfo{}, err
-				}
-
-				return userInfo, err
+			userInfo = domain.UserInfo{
+				Room:      roomID,
+				Color:     userInfoRoom.Color,
+				Vip:       userInfoRoom.Vip,
+				Moderator: userInfoRoom.Moderator,
+				Baneado:   userInfoRoom.Baneado,
 			}
+			userInfo.Identidad = userInfoRoom.Identidad
+
+			userInfo.LastMessage = time.Now()
+
+			userInfo.Following = userInfoRoom.Following
+			userInfo.StreamerChannelOwner = userInfoRoom.StreamerChannelOwner
+			userInfo.Subscription = userInfoRoom.Subscription
+			userInfo.TimeOut = userInfoRoom.TimeOut
+
+			userInfo.EmblemasChat = userInfoRoom.EmblemasChat
+
+			subscription, err := r.getSubscriptionByID(userInfoRoom.Subscription)
+
+			if err == nil {
+				// Se encontró el documento de suscripción
+				subscriptionInfo := domain.SubscriptionInfo{
+					ID:                   subscription.ID,
+					SubscriptionNameUser: subscription.SubscriptionNameUser,
+					SourceUserID:         subscription.SourceUserID,
+					DestinationUserID:    subscription.DestinationUserID,
+					SubscriptionStart:    subscription.SubscriptionStart,
+					SubscriptionEnd:      subscription.SubscriptionEnd,
+					MonthsSubscribed:     subscription.MonthsSubscribed,
+					Notified:             subscription.Notified,
+					Text:                 subscription.Text,
+				}
+
+				userInfo.SubscriptionInfo = subscriptionInfo
+			} else if err == mongo.ErrNoDocuments {
+				userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
+			} else {
+				userInfo.SubscriptionInfo = domain.SubscriptionInfo{}
+			}
+
+			err = r.RedisCacheSetUserInfo(userHashKey, userInfo)
+			if err != nil {
+				return domain.UserInfo{}, err
+			}
+
+			return userInfo, err
 
 		}
 		if !roomExists {
@@ -682,14 +621,12 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				Vip:          false,
 				Color:        randomColor,
 				Moderator:    false,
-				Verified:     verified,
 				Subscription: primitive.ObjectID{},
 				Baneado:      false,
 				TimeOut:      time.Now(),
 				EmblemasChat: map[string]string{
 					"Vip":       "",
 					"Moderator": "",
-					"Verified":  "",
 				},
 				SubscriptionInfo: domain.SubscriptionInfo{},
 				Following:        domain.FollowInfo{},
@@ -697,21 +634,12 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			}
 			streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
 			userInfo.StreamerChannelOwner = streamerChannelOwner
-			if verified {
-				VERIFIED := config.PARTNER()
-				userInfo.EmblemasChat = map[string]string{
-					"Vip":       "",
-					"Moderator": "",
-					"Verified":  VERIFIED,
-				}
-			}
 
 			newRoom := map[string]interface{}{
 				"Room":                 roomID,
 				"Vip":                  false,
 				"Color":                randomColor,
 				"Moderator":            false,
-				"Verified":             verified,
 				"Subscription":         primitive.ObjectID{},
 				"Baneado":              false,
 				"TimeOut":              time.Now(),
@@ -729,7 +657,6 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 
 		}
 		if InsertuserInfoCollection {
-
 			userInfoCollection := domain.InfoUser{
 				Nameuser: nameUser,
 				Color:    randomColor,
@@ -1170,7 +1097,6 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 		"Identidad":            userInfo.Identidad,
 		"SubscriptionInfo":     userInfo.SubscriptionInfo,
 		"Subscription":         userInfo.Subscription,
-		"Verified":             userInfo.Verified,
 		"Room":                 userInfo.Room,
 		"LastMessage":          userInfo.LastMessage,
 		"StreamerChannelOwner": streamerChannelOwner,
@@ -1342,4 +1268,72 @@ func (r *PubSubService) streamerChannelOwner(nameUser string, room primitive.Obj
 		coincide = true
 	}
 	return coincide, nil
+}
+func (u *PubSubService) IsPinkkerPrimeActive(nameUser string) (bool, error) {
+	var result struct {
+		PinkkerPrime struct {
+			SubscriptionEnd time.Time `bson:"SubscriptionEnd"`
+		} `bson:"PinkkerPrime"`
+	}
+
+	collection := u.MongoClient.Database("PINKKER-BACKEND").Collection("Users")
+	err := collection.FindOne(
+		context.TODO(),
+		bson.M{"NameUser": nameUser},
+		options.FindOne().SetProjection(bson.M{"PinkkerPrime.SubscriptionEnd": 1}),
+	).Decode(&result)
+
+	if err != nil {
+		return false, fmt.Errorf("error finding user: %v", err)
+	}
+
+	// Verificar si la suscripción sigue activa (la fecha actual es anterior a SubscriptionEnd)
+	if time.Now().Before(result.PinkkerPrime.SubscriptionEnd) {
+		return true, nil
+	}
+
+	// Si la suscripción ha expirado
+	return false, nil
+}
+func (r *PubSubService) GetInfoUserInRoomSpeci(nameUser string, getInfoUserInRoom primitive.ObjectID) (*domain.UserInfo, error) {
+	database := r.MongoClient.Database("PINKKER-BACKEND")
+	var room *domain.UserInfo
+	filter := bson.D{
+		{Key: "NameUser", Value: nameUser},
+		{Key: "Rooms.Room", Value: getInfoUserInRoom},
+	}
+
+	pipeline := mongo.Pipeline{
+		{
+			{Key: "$match", Value: filter},
+		},
+		{
+			{Key: "$unwind", Value: "$Rooms"},
+		},
+		{
+			{Key: "$match", Value: bson.D{{Key: "Rooms.Room", Value: getInfoUserInRoom}}},
+		},
+		{
+			{Key: "$replaceRoot", Value: bson.D{{Key: "newRoot", Value: "$Rooms"}}},
+		},
+	}
+
+	// Obtener el cursor
+	cursor, err := database.Collection("UserInformationInAllRooms").Aggregate(context.Background(), pipeline)
+	if err != nil {
+		return room, err
+	}
+	defer cursor.Close(context.Background())
+
+	if cursor.Next(context.Background()) {
+		if err := cursor.Decode(&room); err != nil {
+			return room, err
+		}
+	}
+
+	if err := cursor.Err(); err != nil {
+		return room, err
+	}
+
+	return room, nil
 }
