@@ -66,6 +66,8 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 	PRIME := config.PINKKERPRIME()
 
 	currentEmblemasChat := userInfo.EmblemasChat
+	fmt.Println(userInfo.EmblemasChat)
+	fmt.Println(userInfo.PinkkerPrime)
 
 	if verified {
 		currentEmblemasChat["Verified"] = VERIFIED

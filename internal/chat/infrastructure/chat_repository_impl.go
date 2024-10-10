@@ -432,6 +432,8 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			return userInfo, errUnmarshal
 		}
 		userInfo.Vip, _ = storedUserFields["Vip"].(bool)
+		userInfo.PinkkerPrime, _ = storedUserFields["PinkkerPrime"].(bool)
+
 		userInfo.StreamerChannelOwner, _ = storedUserFields["StreamerChannelOwner"].(bool)
 		subscriptionValue, _ := storedUserFields["Subscription"].(string)
 
