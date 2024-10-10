@@ -209,7 +209,7 @@ func (s *ChatService) Baneado(action domain.Action, idUser primitive.ObjectID, v
 	}
 	userInfo.Baneado = true
 
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 
 	if err != nil {
 		return err
@@ -234,7 +234,7 @@ func (s *ChatService) Removeban(action domain.Action, nameUser primitive.ObjectI
 	}
 
 	userInfo.Baneado = false
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -260,7 +260,7 @@ func (s *ChatService) Vip(action domain.Action, nameUser primitive.ObjectID, ver
 
 	userInfo.EmblemasChat["Vip"] = VIP
 	fmt.Println(userInfo.EmblemasChat["Vip"])
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -285,7 +285,7 @@ func (s *ChatService) RemoveVip(action domain.Action, nameUser primitive.ObjectI
 
 	userInfo.Vip = false
 	userInfo.EmblemasChat["Vip"] = ""
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -305,7 +305,7 @@ func (s *ChatService) TimeOut(action domain.Action, nameUser primitive.ObjectID,
 	}
 
 	userInfo.TimeOut = time.Now().Add(time.Duration(action.TimeOut) * time.Minute)
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func (s *ChatService) Moderator(action domain.Action, nameUser primitive.ObjectI
 	MODERATOR := config.MODERATOR()
 
 	userInfo.EmblemasChat["Moderator"] = MODERATOR
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -355,7 +355,7 @@ func (s *ChatService) RemoveModerator(action domain.Action, nameUser primitive.O
 	userInfo.Moderator = false
 	userInfo.EmblemasChat["Moderator"] = ""
 
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (s *ChatService) ModeratorActionBaneado(action domain.ModeratorAction, veri
 		return nil
 	}
 	userInfo.Baneado = true
-	err = s.roomRepository.UpdataUserInfo(action.Room, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(action.Room, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -394,7 +394,7 @@ func (s *ChatService) ModeratorActionModerator(action domain.ModeratorAction, ve
 	MODERATOR := config.MODERATOR()
 
 	userInfo.EmblemasChat["Moderator"] = MODERATOR
-	err = s.roomRepository.UpdataUserInfo(action.Room, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(action.Room, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -412,7 +412,7 @@ func (s *ChatService) ModeratorActionUnModerator(action domain.ModeratorAction, 
 
 	userInfo.Moderator = false
 	userInfo.EmblemasChat["Moderator"] = ""
-	err = s.roomRepository.UpdataUserInfo(action.Room, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(action.Room, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -431,7 +431,7 @@ func (s *ChatService) ModeratorActionRemoveban(action domain.ModeratorAction, ve
 	}
 
 	userInfo.Baneado = false
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -446,7 +446,7 @@ func (s *ChatService) ModeratorActionTimeOut(action domain.ModeratorAction, veri
 	}
 
 	userInfo.TimeOut = time.Now().Add(time.Duration(action.TimeOut) * time.Minute)
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -468,7 +468,7 @@ func (s *ChatService) ModeratorActionVip(action domain.ModeratorAction, verified
 	VIP := config.VIP()
 
 	userInfo.EmblemasChat["Vip"] = VIP
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -487,7 +487,7 @@ func (s *ChatService) ModeratorActionunVip(action domain.ModeratorAction, verifi
 
 	userInfo.Vip = false
 	userInfo.EmblemasChat["Vip"] = ""
-	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, action.ActionAgainst, userInfo, verified)
 	if err != nil {
 		return err
 	}
@@ -514,7 +514,7 @@ func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, Nam
 	if action.Identidad == "" && action.Color == "" {
 		userInfo.Identidad = ""
 	}
-	err = s.roomRepository.UpdataUserInfo(roomID, NameUser, userInfo)
+	err = s.roomRepository.UpdataUserInfo(roomID, NameUser, userInfo, verified)
 	if err != nil {
 		return err
 	}

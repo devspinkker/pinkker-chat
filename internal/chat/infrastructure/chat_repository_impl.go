@@ -1070,7 +1070,7 @@ func (r *PubSubService) RedisCacheGetLastRoomMessages(Room string) ([]string, er
 }
 
 // updata User
-func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser string, userInfo domain.UserInfo) error {
+func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser string, userInfo domain.UserInfo, verified bool) error {
 	Collection := r.MongoClient.Database("PINKKER-BACKEND").Collection("UserInformationInAllRooms")
 	filter := bson.M{"NameUser": nameUser, "Rooms.Room": roomID}
 	updateFields := bson.M{
@@ -1090,6 +1090,25 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 	}
 	streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
 	PinkkerPrime, _ := r.IsPinkkerPrimeActive(nameUser)
+
+	VERIFIED := config.PARTNER()
+	PRIME := config.PINKKERPRIME()
+
+	currentEmblemasChat := userInfo.EmblemasChat
+
+	if verified {
+		currentEmblemasChat["Verified"] = VERIFIED
+	} else {
+		currentEmblemasChat["Verified"] = ""
+	}
+
+	if userInfo.PinkkerPrime {
+		currentEmblemasChat["PinkkerPrime"] = PRIME
+	} else {
+		currentEmblemasChat["PinkkerPrime"] = ""
+	}
+
+	userInfo.EmblemasChat = currentEmblemasChat
 
 	userHashKey := "userInformation:" + nameUser + ":inTheRoom:" + roomID.Hex()
 	userFields := map[string]interface{}{
