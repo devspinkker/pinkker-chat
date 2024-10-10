@@ -505,8 +505,6 @@ func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, Nam
 	if err != nil {
 		return err
 	}
-	fmt.Println("QUE")
-
 	// modificarlo al usuariofv
 	if action.Color != "" {
 		userInfo.Color = action.Color
