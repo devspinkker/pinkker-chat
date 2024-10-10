@@ -72,3 +72,10 @@ func MONGODB_URI() string {
 	return os.Getenv("MONGODB_URI")
 
 }
+func PINKKERPRIME() string {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("godotenv.Load error URI mongo")
+	}
+	return os.Getenv("PINKKERPRIME")
+
+}
