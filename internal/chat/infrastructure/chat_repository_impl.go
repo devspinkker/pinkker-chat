@@ -401,7 +401,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 
 	randomIndex := rand.Intn(len(colors))
 	randomColor := colors[randomIndex]
-	var InsertuserInfoCollection bool = false
+	var InsertuserInfoCollection bool = true
 	defaultUserFields := map[string]interface{}{
 		"Room":             roomID,      // primitive.ObjectID
 		"Color":            randomColor, //string
@@ -554,13 +554,14 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		filter := bson.M{"NameUser": nameUser}
 		err = Collection.FindOne(context.Background(), filter).Decode(&infoUser)
 		if err == mongo.ErrNoDocuments {
-			InsertuserInfoCollection = true
+			InsertuserInfoCollection = false
 
 		} else if err != nil {
 			return userInfo, err
 		}
 		roomExists := false
 		userInfoRoom, err := r.GetInfoUserInRoomSpeci(nameUser, roomID)
+		fmt.Println(err.Error())
 		if err != nil {
 			roomExists = false
 		} else {
@@ -617,52 +618,54 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			return userInfo, err
 
 		}
-		if !roomExists {
-			userInfo = domain.UserInfo{
-				Room:         roomID,
-				Vip:          false,
-				Color:        randomColor,
-				Moderator:    false,
-				Subscription: primitive.ObjectID{},
-				Baneado:      false,
-				TimeOut:      time.Now(),
-				EmblemasChat: map[string]string{
-					"Vip":       "",
-					"Moderator": "",
-				},
-				SubscriptionInfo: domain.SubscriptionInfo{},
-				Following:        domain.FollowInfo{},
-				LastMessage:      time.Now(),
-			}
-			streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
-			userInfo.StreamerChannelOwner = streamerChannelOwner
+		userInfo = domain.UserInfo{
+			Room:         roomID,
+			Vip:          false,
+			Color:        randomColor,
+			Moderator:    false,
+			Subscription: primitive.ObjectID{},
+			Baneado:      false,
+			TimeOut:      time.Now(),
+			EmblemasChat: map[string]string{
+				"Vip":       "",
+				"Moderator": "",
+			},
+			SubscriptionInfo: domain.SubscriptionInfo{},
+			Following:        domain.FollowInfo{},
+			LastMessage:      time.Now(),
+		}
+		streamerChannelOwner, _ := r.streamerChannelOwner(nameUser, roomID)
+		userInfo.StreamerChannelOwner = streamerChannelOwner
 
-			newRoom := map[string]interface{}{
-				"Room":                 roomID,
-				"Vip":                  false,
-				"Color":                randomColor,
-				"Moderator":            false,
-				"Subscription":         primitive.ObjectID{},
-				"Baneado":              false,
-				"TimeOut":              time.Now(),
-				"EmblemasChat":         userInfo.EmblemasChat,
-				"Following":            domain.FollowInfo{},
-				"StreamerChannelOwner": streamerChannelOwner,
-				"LastMessage":          time.Now(),
-			}
+		newRoom := map[string]interface{}{
+			"Room":                 roomID,
+			"Vip":                  false,
+			"Color":                randomColor,
+			"Moderator":            false,
+			"Subscription":         primitive.ObjectID{},
+			"Baneado":              false,
+			"TimeOut":              time.Now(),
+			"EmblemasChat":         userInfo.EmblemasChat,
+			"Following":            domain.FollowInfo{},
+			"StreamerChannelOwner": streamerChannelOwner,
+			"LastMessage":          time.Now(),
+		}
 
-			infoUser.Rooms = append(infoUser.Rooms, newRoom)
-			_, err := Collection.UpdateOne(context.Background(), filter, bson.M{"$set": infoUser})
+		infoUser.Rooms = append(infoUser.Rooms, newRoom)
+		if !roomExists && InsertuserInfoCollection {
+			_, err = Collection.UpdateOne(context.Background(), filter, bson.M{"$set": infoUser})
+			fmt.Println(err)
+
 			if err != nil {
 				return domain.UserInfo{}, err
 			}
 
 		}
-		if InsertuserInfoCollection {
+		if !InsertuserInfoCollection {
 			userInfoCollection := domain.InfoUser{
 				Nameuser: nameUser,
 				Color:    randomColor,
-				Rooms:    []map[string]interface{}{defaultUserFields},
+				Rooms:    []map[string]interface{}{newRoom},
 			}
 			_, err = Collection.InsertOne(context.Background(), userInfoCollection)
 			if err != nil {
