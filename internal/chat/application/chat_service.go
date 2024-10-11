@@ -80,6 +80,8 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 	}
 
 	userInfo.EmblemasChat = currentEmblemasChat
+	fmt.Println(verified)
+	fmt.Println(userInfo.PinkkerPrime)
 
 	if !userInfo.StreamerChannelOwner {
 		if userInfo.Baneado {

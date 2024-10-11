@@ -647,7 +647,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 				"TimeOut":              time.Now(),
 				"EmblemasChat":         userInfo.EmblemasChat,
 				"Following":            domain.FollowInfo{},
-				"StreamerChannelOwner": userInfo.StreamerChannelOwner,
+				"StreamerChannelOwner": streamerChannelOwner,
 				"LastMessage":          time.Now(),
 			}
 
@@ -1109,15 +1109,13 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 		currentEmblemasChat["PinkkerPrime"] = ""
 	}
 
-	userInfo.EmblemasChat = currentEmblemasChat
-
 	userHashKey := "userInformation:" + nameUser + ":inTheRoom:" + roomID.Hex()
 	userFields := map[string]interface{}{
 		"Vip":                  userInfo.Vip,
 		"Baneado":              userInfo.Baneado,
 		"TimeOut":              userInfo.TimeOut,
 		"Moderator":            userInfo.Moderator,
-		"EmblemasChat":         userInfo.EmblemasChat,
+		"EmblemasChat":         currentEmblemasChat,
 		"Color":                userInfo.Color,
 		"Identidad":            userInfo.Identidad,
 		"SubscriptionInfo":     userInfo.SubscriptionInfo,
@@ -1125,7 +1123,7 @@ func (r *PubSubService) UpdataUserInfo(roomID primitive.ObjectID, nameUser strin
 		"Room":                 userInfo.Room,
 		"LastMessage":          userInfo.LastMessage,
 		"StreamerChannelOwner": streamerChannelOwner,
-		"PinkkerPrime ":        PinkkerPrime,
+		"PinkkerPrime":         PinkkerPrime,
 	}
 
 	err = r.RedisCacheSetUpdata(userHashKey, userFields)
