@@ -561,7 +561,6 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		}
 		roomExists := false
 		userInfoRoom, err := r.GetInfoUserInRoomSpeci(nameUser, roomID)
-		fmt.Println(err.Error())
 		if err != nil {
 			roomExists = false
 		} else {
