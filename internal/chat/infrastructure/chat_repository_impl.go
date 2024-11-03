@@ -1058,7 +1058,7 @@ func (r *PubSubService) RedisCacheSetUserInfo(userHashKey string, userInfo domai
 	if err != nil {
 		return err
 	}
-	cacheExpiration := 10 * time.Minute
+	cacheExpiration := 5 * time.Minute
 	err = r.redisClient.Set(context.Background(), userHashKey, userFieldsJSON, cacheExpiration).Err()
 	return err
 }
