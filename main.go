@@ -22,7 +22,15 @@ func main() {
 	newMongoDB := setupMongoDB()
 	defer newMongoDB.Disconnect(context.Background())
 	app := fiber.New()
-	app.Use(cors.New())
+	app.Use(cors.New(
+		cors.Config{
+			AllowCredentials: true,
+			AllowOrigins:     "https://www.pinkker.tv",
+			AllowHeaders:     "Origin, Content-Type, Accept, Accept-Language, Content-Length",
+			AllowMethods:     "GET,POST,HEAD,PUT,DELETE,PATCH,OPTIONS",
+		},
+	),
+	)
 
 	routes.Routes(app, redisClient, newMongoDB)
 
