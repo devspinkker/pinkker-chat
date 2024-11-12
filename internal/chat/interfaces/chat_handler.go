@@ -4,6 +4,7 @@ import (
 	"PINKKER-CHAT/internal/chat/application"
 	"PINKKER-CHAT/internal/chat/domain"
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -382,6 +383,9 @@ func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser str
 
 func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
 	roomID := c.Params("roomID")
+	if c == nil {
+		return fmt.Errorf("websocket connection is nil")
+	}
 
 	sub := h.chatService.SubscribeToRoom(roomID)
 
