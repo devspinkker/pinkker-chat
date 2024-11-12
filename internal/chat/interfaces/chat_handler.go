@@ -384,6 +384,7 @@ func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser str
 func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
 	roomID := c.Params("roomID")
 	if c == nil {
+		fmt.Println("hubiera caido el error c")
 		return fmt.Errorf("websocket connection is nil")
 	}
 
@@ -423,8 +424,13 @@ func (h *ChatHandler) ReceiveMessageActionMessages(c *websocket.Conn) error {
 	sub := h.chatService.SubscribeToRoom(roomID)
 
 	for {
+
 		go func() {
 			for {
+				if c == nil {
+					fmt.Println("WebSocket connection is closed.")
+					break
+				}
 				_, _, err := c.ReadMessage()
 				if err != nil {
 					h.chatService.CloseSubscription(sub)
@@ -441,7 +447,10 @@ func (h *ChatHandler) ReceiveMessageActionMessages(c *websocket.Conn) error {
 			h.chatService.CloseSubscription(sub)
 			return err
 		}
-
+		if c == nil {
+			fmt.Println("WebSocket connection is closed.")
+			return err
+		}
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
 			h.chatService.CloseSubscription(sub)
