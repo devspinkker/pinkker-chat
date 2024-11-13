@@ -435,13 +435,17 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 		userInfo.PinkkerPrime, _ = storedUserFields["PinkkerPrime"].(bool)
 
 		userInfo.StreamerChannelOwner, _ = storedUserFields["StreamerChannelOwner"].(bool)
-		subscriptionValue, _ := storedUserFields["Subscription"].(string)
 
-		subscriptionID, err := primitive.ObjectIDFromHex(subscriptionValue)
-		if err == nil {
-			userInfo.Subscription = subscriptionID
+		subscriptionValue, ok := storedUserFields["Subscription"].(string)
+		if !ok || subscriptionValue == "" {
+			userInfo.Subscription = primitive.NilObjectID // o manejarlo según corresponda
 		} else {
-			userInfo.Subscription = primitive.NilObjectID
+			subscriptionID, err := primitive.ObjectIDFromHex(subscriptionValue)
+			if err == nil {
+				userInfo.Subscription = subscriptionID
+			} else {
+				userInfo.Subscription = primitive.NilObjectID // o manejar el error de forma diferente
+			}
 		}
 
 		subscriptionInfoInterface, ok := storedUserFields["SubscriptionInfo"]

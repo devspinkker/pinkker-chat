@@ -393,6 +393,11 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
 	for {
 		go func() {
 			for {
+				if c == nil {
+					fmt.Println("hubiera caido el error c 2")
+
+					return
+				}
 				_, _, err := c.ReadMessage()
 				if err != nil {
 					h.chatService.CloseSubscription(sub)
