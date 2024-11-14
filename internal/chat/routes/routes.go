@@ -107,6 +107,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 			}
 		}
 		for {
+
 			errReceiveMessageFromRoom := chatHandler.ReceiveMessageFromRoom(c)
 			if errReceiveMessageFromRoom != nil {
 				c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))

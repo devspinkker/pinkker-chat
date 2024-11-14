@@ -389,40 +389,42 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
 	}
 
 	sub := h.chatService.SubscribeToRoom(roomID)
+	defer h.chatService.CloseSubscription(sub)
+
+	go func() {
+		for {
+			if c == nil {
+				fmt.Println("hubiera caido el error c 2")
+				return
+			}
+
+			// Intentar leer el mensaje
+			_, _, err := c.ReadMessage()
+			if err != nil {
+				// Cerrar la conexión y detener la goroutine
+				h.chatService.CloseSubscription(sub)
+				if c != nil {
+					c.Close()
+				}
+				fmt.Println("Error leyendo mensaje:", err)
+				return
+			}
+		}
+	}()
 
 	for {
-		go func() {
-			for {
-				if c == nil {
-					fmt.Println("hubiera caido el error c 2")
-
-					return
-				}
-				_, _, err := c.ReadMessage()
-				if err != nil {
-					h.chatService.CloseSubscription(sub)
-					if c != nil {
-						c.Close()
-					}
-
-					return
-				}
-			}
-		}()
-
 		message, err := sub.ReceiveMessage(context.Background())
 		if err != nil {
-			h.chatService.CloseSubscription(sub)
 			return err
 		}
 
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
-			h.chatService.CloseSubscription(sub)
 			return err
 		}
 	}
 }
+
 func (h *ChatHandler) ReceiveMessageActionMessages(c *websocket.Conn) error {
 	roomID := c.Params("roomID") + "action"
 
