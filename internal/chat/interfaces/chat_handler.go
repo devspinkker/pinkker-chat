@@ -384,7 +384,6 @@ func (h *ChatHandler) InfoUserRoomChache(roomID primitive.ObjectID, nameUser str
 func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
 	roomID := c.Params("roomID")
 	if c == nil {
-		fmt.Println("hubiera caido el error c")
 		return fmt.Errorf("websocket connection is nil")
 	}
 
@@ -393,20 +392,10 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
 
 	go func() {
 		for {
-			if c == nil {
-				fmt.Println("hubiera caido el error c 2")
-				return
-			}
-
-			// Intentar leer el mensaje
 			_, _, err := c.ReadMessage()
 			if err != nil {
-				// Cerrar la conexión y detener la goroutine
 				h.chatService.CloseSubscription(sub)
-				if c != nil {
-					c.Close()
-				}
-				fmt.Println("Error leyendo mensaje:", err)
+				_ = c.Close()
 				return
 			}
 		}
@@ -415,12 +404,12 @@ func (h *ChatHandler) ReceiveMessageFromRoom(c *websocket.Conn) error {
 	for {
 		message, err := sub.ReceiveMessage(context.Background())
 		if err != nil {
-			return err
+			return fmt.Errorf("error receiving message from room: %w", err)
 		}
 
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
-			return err
+			return fmt.Errorf("error writing message to websocket: %w", err)
 		}
 	}
 }

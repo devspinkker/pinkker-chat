@@ -79,3 +79,11 @@ func PINKKERPRIME() string {
 	return os.Getenv("PINKKERPRIME")
 
 }
+
+func IdentidadSignoZodiacal(signo string) string {
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error cargando el archivo .env")
+	}
+
+	return os.Getenv(signo)
+}

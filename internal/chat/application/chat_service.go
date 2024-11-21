@@ -510,9 +510,7 @@ func (s *ChatService) ActionIdentidadUser(action domain.ActionIdentidadUser, Nam
 		userInfo.Color = action.Color
 	}
 	if action.Identidad != "" {
-		if action.Identidad == "mute" {
-			userInfo.Identidad = config.IDENTIDADMUTE()
-		}
+		userInfo.Identidad = config.IdentidadSignoZodiacal(action.Identidad)
 	}
 	if action.Identidad == "" && action.Color == "" {
 		userInfo.Identidad = ""
