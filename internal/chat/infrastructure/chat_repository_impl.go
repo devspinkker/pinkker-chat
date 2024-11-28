@@ -333,56 +333,32 @@ func (r *PubSubService) updateViewerCount(ctx context.Context, session mongo.Ses
 	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
 	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
 
-	// Obtener el Stream actual
+	// Actualizar el ViewerCount del Stream y obtener el documento actualizado
 	var updatedStream domain.Stream
-	err := streamCollection.FindOne(ctx, bson.M{"_id": roomID}).Decode(&updatedStream)
-	if err != nil {
-		return err
-	}
-
-	// Verificar que el nuevo ViewerCount no sea negativo
-	newViewerCount := updatedStream.ViewerCount + delta
-	if newViewerCount < 0 {
-		return fmt.Errorf("ViewerCount cannot be negative")
-	}
-
-	// Actualizar contador de espectadores para la sala
-	_, err = streamCollection.UpdateOne(ctx,
+	err := streamCollection.FindOneAndUpdate(ctx,
 		bson.M{"_id": roomID},
-		bson.M{"$inc": bson.M{"ViewerCount": delta}})
+		bson.M{
+			"$inc": bson.M{"ViewerCount": delta},
+			"$max": bson.M{"ViewerCount": 0},
+		},
+		options.FindOneAndUpdate().SetReturnDocument(options.After), // Devuelve el documento actualizado
+	).Decode(&updatedStream)
 	if err != nil {
 		return err
 	}
 
-	// Obtener la categoría de la sala
+	// Usar directamente la categoría del Stream actualizado
 	categoria := updatedStream.StreamCategory
 
-	// Obtener la categoría actual
-	var updatedCategory domain.Categoria
-	err = categoriaCollection.FindOne(ctx, bson.M{"Name": categoria}).Decode(&updatedCategory)
-	if err != nil && err != mongo.ErrNoDocuments {
-		return err
-	}
-
-	// Verificar que el nuevo Spectators no sea negativo
-	newSpectators := updatedCategory.Spectators + delta
-	if newSpectators < 0 {
-		return fmt.Errorf("spectators cannot be negative")
-	}
-
-	// Actualizar contador de espectadores para la categoría
-	if err == mongo.ErrNoDocuments {
-		_, err = categoriaCollection.InsertOne(ctx, bson.M{
-			"Name":       categoria,
-			"Img":        "",
-			"Spectators": delta,
-			"Tags":       []string{},
-		})
-	} else {
-		_, err = categoriaCollection.UpdateOne(ctx,
-			bson.M{"Name": categoria},
-			bson.M{"$inc": bson.M{"Spectators": delta}})
-	}
+	// Actualizar el número de Spectators de la categoría
+	_, err = categoriaCollection.UpdateOne(ctx,
+		bson.M{"Name": categoria},
+		bson.M{
+			"$inc": bson.M{"Spectators": delta},
+			"$max": bson.M{"Spectators": 0},
+		},
+		options.Update().SetUpsert(true),
+	)
 	if err != nil {
 		return err
 	}
