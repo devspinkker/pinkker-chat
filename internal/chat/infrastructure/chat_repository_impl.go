@@ -269,73 +269,61 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 	activeUserRoomsKey := "ActiveUserRooms:" + nameUser // Clave para las salas activas del usuario
 	userLockKey := "UserLock:" + nameUser + roomID      // Clave de bloqueo único para el usuario
 	var delta int
-	// Intentar obtener un bloqueo exclusivo en Redis usando SET con NX (solo si no existe)
-	// Este comando asegura que solo un proceso pueda manipular al usuario al mismo tiempo.
-	// El tiempo de expiración previene bloqueos permanentes si algo sale mal.
+
+	// Intentar obtener un bloqueo exclusivo en Redis
 	lockSet, err := r.redisClient.SetNX(ctx, userLockKey, "locked", 5*time.Second).Result()
 	if err != nil {
 		return fmt.Errorf("error trying to acquire lock: %w", err)
 	}
-
-	// Si no se puede obtener el bloqueo, significa que otro proceso ya lo está manipulando
 	if !lockSet {
 		return fmt.Errorf("another process is already handling the user %s, try again later", nameUser)
 	}
-
-	// Asegúrate de liberar el lock después de que termines de procesar el usuario
 	defer r.redisClient.Del(ctx, userLockKey) // Liberar el lock al final de la operación
 
 	// Verificar si el usuario ya está activo en la sala actual
 	isActive, err := r.redisClient.SIsMember(ctx, activeUserRoomsKey, roomID).Result()
 	if err != nil {
-		return err
+		return fmt.Errorf("error checking active user rooms: %w", err)
 	}
 
-	// Si la acción es conectar y el usuario ya está activo, no hacer nada
-	if action == "connect" && isActive {
-		return nil
-	}
-
-	// Si la acción es desconectar y el usuario ya está desconectado, no hacer nada
-	if action == "disconnect" && !isActive {
-		return nil
-	}
-
-	// Usar una transacción de Redis para asegurar la coherencia
-	// Empezamos un bloque de transacciones en Redis
-	tx := r.redisClient.TxPipeline()
-
-	// Si la acción es desconectar, eliminamos al usuario de la lista de salas activas
-	if action == "disconnect" && isActive {
-		tx.SRem(ctx, activeUserRoomsKey, roomID)
-		// Decrementar el contador de espectadores
-		tx.Decr(ctx, "ViewerCount:"+roomID)
-		delta = -1
-	}
-
-	// Si la acción es conectar, agregamos al usuario a la lista de salas activas
-	if action == "connect" && !isActive {
-		tx.SAdd(ctx, activeUserRoomsKey, roomID)
-		// Incrementar el contador de espectadores
-		tx.Incr(ctx, "ViewerCount:"+roomID)
+	if action == "connect" {
+		// Si el usuario ya está activo, no hacer nada
+		if isActive {
+			return nil
+		}
+		// Agregar al usuario como activo en la nueva sala
+		err = r.redisClient.SAdd(ctx, activeUserRoomsKey, roomID).Err()
+		if err != nil {
+			return fmt.Errorf("error adding user to active rooms: %w", err)
+		}
 		delta = 1
 
-	}
+	} else if action == "disconnect" {
+		// Si el usuario ya está desconectado, no hacer nada
+		if !isActive {
+			return nil
+		}
+		// Eliminar al usuario de la lista de salas activas
+		_, err := r.redisClient.SRem(ctx, activeUserRoomsKey, roomID).Result()
+		if err != nil {
+			return fmt.Errorf("error removing user from active rooms: %w", err)
+		}
+		delta = -1
+		roomIDObj, err := primitive.ObjectIDFromHex(roomID)
+		if err != nil {
+			return err
+		}
 
-	// Ejecutar las operaciones en una transacción atómica
-	_, err = tx.Exec(ctx)
-	if err != nil {
-		return fmt.Errorf("error performing redis transaction: %w", err)
+		r.MoveMessagesToMongoDB(idUser, roomIDObj)
 	}
-
-	// Ahora actualizar MongoDB (incrementar o decrementar el contador de espectadores)
+	// Actualizar el contador de espectadores en MongoDB
 	roomIDObj, err := primitive.ObjectIDFromHex(roomID)
 	if err != nil {
-		return err
+		return fmt.Errorf("error parsing roomID to ObjectID: %w", err)
 	}
 	err = r.updateViewerCount(ctx, session, roomIDObj, delta)
 	if err != nil {
-		return err
+		return fmt.Errorf("error updating viewer count: %w", err)
 	}
 
 	return nil
