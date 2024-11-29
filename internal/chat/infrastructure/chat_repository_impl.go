@@ -267,6 +267,23 @@ func (r *PubSubService) RedisFindMatchingUsersInRoomByPrefix(ctx context.Context
 
 func (r *PubSubService) performUserTransaction(ctx context.Context, session mongo.Session, roomID, nameUser string, action string, idUser primitive.ObjectID) error {
 	activeUserRoomsKey := "ActiveUserRooms:" + nameUser // Clave para las salas activas del usuario
+	userLockKey := "UserLock:" + nameUser + roomID      // Clave de bloqueo único para el usuario
+	var delta int
+	// Intentar obtener un bloqueo exclusivo en Redis usando SET con NX (solo si no existe)
+	// Este comando asegura que solo un proceso pueda manipular al usuario al mismo tiempo.
+	// El tiempo de expiración previene bloqueos permanentes si algo sale mal.
+	lockSet, err := r.redisClient.SetNX(ctx, userLockKey, "locked", 5*time.Second).Result()
+	if err != nil {
+		return fmt.Errorf("error trying to acquire lock: %w", err)
+	}
+
+	// Si no se puede obtener el bloqueo, significa que otro proceso ya lo está manipulando
+	if !lockSet {
+		return fmt.Errorf("another process is already handling the user %s, try again later", nameUser)
+	}
+
+	// Asegúrate de liberar el lock después de que termines de procesar el usuario
+	defer r.redisClient.Del(ctx, userLockKey) // Liberar el lock al final de la operación
 
 	// Verificar si el usuario ya está activo en la sala actual
 	isActive, err := r.redisClient.SIsMember(ctx, activeUserRoomsKey, roomID).Result()
@@ -284,46 +301,41 @@ func (r *PubSubService) performUserTransaction(ctx context.Context, session mong
 		return nil
 	}
 
-	// Si la acción es desconectar y el usuario está activo, desconectarlo
+	// Usar una transacción de Redis para asegurar la coherencia
+	// Empezamos un bloque de transacciones en Redis
+	tx := r.redisClient.TxPipeline()
+
+	// Si la acción es desconectar, eliminamos al usuario de la lista de salas activas
 	if action == "disconnect" && isActive {
-		_, err := r.redisClient.SRem(ctx, activeUserRoomsKey, roomID).Result()
-		if err != nil {
-			return err
-		}
-
-		// Disminuir el contador de espectadores para la sala
-		roomIDObj, err := primitive.ObjectIDFromHex(roomID)
-		if err != nil {
-			return err
-		}
-
-		err = r.updateViewerCount(ctx, session, roomIDObj, -1)
-		if err != nil {
-			return err
-		}
-		r.MoveMessagesToMongoDB(idUser, roomIDObj)
-		return nil
+		tx.SRem(ctx, activeUserRoomsKey, roomID)
+		// Decrementar el contador de espectadores
+		tx.Decr(ctx, "ViewerCount:"+roomID)
+		delta = -1
 	}
 
-	// Si la acción es conectar y el usuario está desconectado, conectarlo
+	// Si la acción es conectar, agregamos al usuario a la lista de salas activas
 	if action == "connect" && !isActive {
-		// Agregar al usuario como activo en la nueva sala
-		err = r.redisClient.SAdd(ctx, activeUserRoomsKey, roomID).Err()
-		if err != nil {
-			return err
-		}
+		tx.SAdd(ctx, activeUserRoomsKey, roomID)
+		// Incrementar el contador de espectadores
+		tx.Incr(ctx, "ViewerCount:"+roomID)
+		delta = 1
 
-		// Incrementar el contador de espectadores para la sala
-		roomIDObj, err := primitive.ObjectIDFromHex(roomID)
-		if err != nil {
-			return err
-		}
+	}
 
-		err = r.updateViewerCount(ctx, session, roomIDObj, 1)
-		if err != nil {
-			return err
-		}
+	// Ejecutar las operaciones en una transacción atómica
+	_, err = tx.Exec(ctx)
+	if err != nil {
+		return fmt.Errorf("error performing redis transaction: %w", err)
+	}
 
+	// Ahora actualizar MongoDB (incrementar o decrementar el contador de espectadores)
+	roomIDObj, err := primitive.ObjectIDFromHex(roomID)
+	if err != nil {
+		return err
+	}
+	err = r.updateViewerCount(ctx, session, roomIDObj, delta)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -333,35 +345,49 @@ func (r *PubSubService) updateViewerCount(ctx context.Context, session mongo.Ses
 	streamCollection := session.Client().Database("PINKKER-BACKEND").Collection("Streams")
 	categoriaCollection := session.Client().Database("PINKKER-BACKEND").Collection("Categorias")
 
-	// Actualizar el ViewerCount del Stream y obtener el documento actualizado
+	// Actualizar el ViewerCount del Stream
 	var updatedStream domain.Stream
 	err := streamCollection.FindOneAndUpdate(ctx,
-		bson.M{"_id": roomID},
-		bson.M{
-			"$inc": bson.M{"ViewerCount": delta},
-			"$max": bson.M{"ViewerCount": 0},
-		},
-		options.FindOneAndUpdate().SetReturnDocument(options.After), // Devuelve el documento actualizado
+		bson.M{"_id": roomID},                        // Filtro por ID del stream
+		bson.M{"$inc": bson.M{"ViewerCount": delta}}, // Incrementa o decrementa ViewerCount
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
 	).Decode(&updatedStream)
 	if err != nil {
-		return err
+		return fmt.Errorf("error incrementing ViewerCount: %w", err)
 	}
 
-	// Usar directamente la categoría del Stream actualizado
-	categoria := updatedStream.StreamCategory
+	// Corregir valores negativos de ViewerCount
+	// _, err = streamCollection.UpdateOne(ctx,
+	// 	bson.M{"_id": roomID, "ViewerCount": bson.M{"$lt": 0}}, // Filtro: ViewerCount < 0
+	// 	bson.M{"$set": bson.M{"ViewerCount": 0}},               // Resetea a 0 si es negativo
+	// )
+	// if err != nil {
+	// 	return fmt.Errorf("error resetting ViewerCount to 0: %w", err)
+	// }
 
-	// Actualizar el número de Spectators de la categoría
+	// Verificar y usar la categoría directamente
+	if updatedStream.StreamCategory == "" {
+		return fmt.Errorf("stream category not found")
+	}
+
+	// Actualizar el número de Spectators en la categoría
 	_, err = categoriaCollection.UpdateOne(ctx,
-		bson.M{"Name": categoria},
-		bson.M{
-			"$inc": bson.M{"Spectators": delta},
-			"$max": bson.M{"Spectators": 0},
-		},
-		options.Update().SetUpsert(true),
+		bson.M{"Name": updatedStream.StreamCategory}, // Filtro por categoría
+		bson.M{"$inc": bson.M{"Spectators": delta}},  // Incrementa o decrementa Spectators
+		options.Update().SetUpsert(true),             // Inserta si no existe
 	)
 	if err != nil {
-		return err
+		return fmt.Errorf("error incrementing Spectators: %w", err)
 	}
+
+	// // Corregir valores negativos de Spectators
+	// _, err = categoriaCollection.UpdateOne(ctx,
+	// 	bson.M{"Name": updatedStream.StreamCategory, "Spectators": bson.M{"$lt": 0}}, // Filtro: Spectators < 0
+	// 	bson.M{"$set": bson.M{"Spectators": 0}},                                      // Resetea a 0 si es negativo
+	// )
+	// if err != nil {
+	// 	return fmt.Errorf("error resetting Spectators to 0: %w", err)
+	// }
 
 	return nil
 }
