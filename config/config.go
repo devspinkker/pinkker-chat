@@ -85,5 +85,31 @@ func IdentidadSignoZodiacal(signo string) string {
 		log.Fatal("Error cargando el archivo .env")
 	}
 
-	return os.Getenv(signo)
+	// URL base para las imágenes
+	baseURL := os.Getenv("BASE_ZODIACAL_URL")
+	if baseURL == "" {
+		baseURL = "https://www.pinkker.tv/uploads/assets/ZODIACAL"
+	}
+
+	signos := map[string]string{
+		"ARIES":       "1.jpg",
+		"TAURO":       "2.jpg",
+		"GEMINIS":     "3.jpg",
+		"CANCER":      "4.jpg",
+		"LEO":         "5.jpg",
+		"VIRGO":       "6.jpg",
+		"LIBRA":       "7.jpg",
+		"ESCORPIO":    "8.jpg",
+		"SAGITARIO":   "9.jpg",
+		"CAPRICORNIO": "10.jpg",
+		"ACUARIO":     "11.jpg",
+		"PISCIS":      "12.jpg",
+	}
+
+	fileName, exists := signos[signo]
+	if !exists {
+		return fmt.Sprintf("Signo zodiacal '%s' no encontrado", signo)
+	}
+
+	return fmt.Sprintf("%s/%s", baseURL, fileName)
 }
