@@ -7,6 +7,7 @@ import (
 	"PINKKER-CHAT/pkg/jwt"
 	"PINKKER-CHAT/pkg/middleware"
 	"encoding/json"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
@@ -127,10 +128,14 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 	app.Get("/ws/notifications/notifications/actionMessages/:roomID", websocket.New(func(c *websocket.Conn) {
 		roomID := c.Params("roomID") + "actionMessages"
-		// chatService := utils.NewChatService()
-		// client := &utils.Client{Connection: c}
-		// chatService.AddClientToRoom(roomID, client)
 
+		// Validar el WebSocket antes de proceder
+		if c == nil {
+			fmt.Println("Error: WebSocket connection is nil.")
+			return
+		}
+
+		// Recuperar mensaje anclado si existe
 		ancladoMessage, err := chatHandler.GetAncladoMessageFromRedis(roomID)
 		if err == nil && ancladoMessage != nil {
 			notification := map[string]interface{}{
@@ -138,20 +143,23 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 				"message": ancladoMessage,
 			}
 
+			// Intentar enviar el mensaje anclado
 			jsonData, err := json.Marshal(notification)
 			if err == nil {
-				c.WriteMessage(websocket.TextMessage, jsonData)
+				err = c.WriteMessage(websocket.TextMessage, jsonData)
+				if err != nil {
+					fmt.Println("Error writing anchored message:", err)
+					c.Close()
+					return
+				}
 			}
 		}
 
-		// defer func() {
-		// 	chatService.RemoveClientFromRoom(roomID, client)
-		// 	_ = c.Close()
-		// }()
-
+		// Manejar mensajes desde el WebSocket
 		errReceiveMessageFromRoom := chatHandler.ReceiveMessageActionMessages(c)
 		if errReceiveMessageFromRoom != nil {
-			c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
+			fmt.Println("Error receiving messages:", errReceiveMessageFromRoom)
+			_ = c.WriteMessage(websocket.TextMessage, []byte(errReceiveMessageFromRoom.Error()))
 			c.Close()
 			return
 		}
