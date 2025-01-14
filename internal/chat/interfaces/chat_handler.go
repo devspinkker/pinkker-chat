@@ -419,25 +419,34 @@ func (h *ChatHandler) ReceiveMessageActionMessages(c *websocket.Conn) error {
 
 	sub := h.chatService.SubscribeToRoom(roomID)
 
-	for {
+	// Crear contexto con cancelación
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // Cancelar el contexto al salir de la función
 
-		go func() {
-			for {
-				if c == nil {
-					fmt.Println("WebSocket connection is closed.")
-					break
-				}
+	// Lanzar una goroutine para manejar la lectura de mensajes desde el WebSocket
+	go func(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				fmt.Println("Stopping WebSocket message reader due to context cancellation.")
+				return
+			default:
 				_, _, err := c.ReadMessage()
 				if err != nil {
+					fmt.Println("Error reading WebSocket message:", err)
 					h.chatService.CloseSubscription(sub)
+					cancel() // Cancelar el contexto para detener la goroutine
 					if c != nil {
 						c.Close()
 					}
 					return
 				}
 			}
-		}()
+		}
+	}(ctx)
 
+	// Bucle principal para recibir mensajes desde Redis y enviarlos al WebSocket
+	for {
 		message, err := sub.ReceiveMessage(context.Background())
 		if err != nil {
 			h.chatService.CloseSubscription(sub)
@@ -450,10 +459,12 @@ func (h *ChatHandler) ReceiveMessageActionMessages(c *websocket.Conn) error {
 		err = c.WriteMessage(websocket.TextMessage, []byte(message.Payload))
 		if err != nil {
 			h.chatService.CloseSubscription(sub)
+			cancel() // Cancelar el contexto al cerrar la conexión
 			return err
 		}
 	}
 }
+
 func (h *ChatHandler) RedisCacheGetLastRoomMessages(roomID string) ([]string, error) {
 
 	message, err := h.chatService.RedisCacheGetLastRoomMessages(roomID)
