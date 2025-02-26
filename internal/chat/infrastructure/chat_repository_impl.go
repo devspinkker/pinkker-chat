@@ -179,6 +179,40 @@ func (r *PubSubService) RedisGetModSlowModeStream(Room primitive.ObjectID) (int,
 
 	return modSlowMode, nil
 }
+func (r *PubSubService) RedisGetAntiqueStreamDuration(Room primitive.ObjectID) (int64, error) {
+	key := Room.Hex() + "AntiqueStreamDuration"
+	ctx := context.Background()
+
+	// Intentar obtener el valor de Redis
+	value, err := r.redisClient.Get(ctx, key).Result()
+	if err == nil {
+		duration, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return 0, err
+		}
+		return duration, nil
+	} else if err != redis.Nil {
+		return 0, err
+	}
+
+	// Si no está en Redis, buscar en MongoDB
+	var stream domain.Stream
+	err = r.MongoClient.Database("PINKKER-BACKEND").Collection("Streams").
+		FindOne(ctx, bson.M{"_id": Room}).Decode(&stream)
+	if err != nil {
+		return 0, err
+	}
+
+	antiqueDuration := stream.AntiqueStreamDuration
+
+	// Guardar en Redis con expiración de 3 minutos
+	err = r.redisClient.Set(ctx, key, strconv.FormatInt(antiqueDuration, 10), 3*time.Minute).Err()
+	if err != nil {
+		return 0, err
+	}
+
+	return antiqueDuration, nil
+}
 
 func (r *PubSubService) UserExists(ctx context.Context, nameUser string) (bool, error) {
 	userCollection := r.MongoClient.Database("PINKKER-BACKEND").Collection("Users")
@@ -611,6 +645,7 @@ func (r *PubSubService) GetUserInfo(roomID primitive.ObjectID, nameUser string, 
 			return userInfo, err
 
 		}
+		// Si el usuario no está en la sala, se crea un nuevo registro
 		userInfo = domain.UserInfo{
 			Room:         roomID,
 			Vip:          false,

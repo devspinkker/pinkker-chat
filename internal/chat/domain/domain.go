@@ -227,6 +227,7 @@ type Stream struct {
 	ModSlowMode            int                `json:"ModSlowMode" bson:"ModSlowMode"`
 	Banned                 bool               `json:"Banned" bson:"Banned"`
 	TotalTimeOnlineSeconds int64              `json:"TotalTimeOnlineSeconds" bson:"TotalTimeOnlineSeconds"`
+	AntiqueStreamDuration  int64              `json:"AntiqueStreamDuration" bson:"AntiqueStreamDuration"`
 }
 
 type User struct {

@@ -100,6 +100,18 @@ func (s *ChatService) PublishMessageInRoom(roomID primitive.ObjectID, message, R
 			if userInfo.Following.Email == "" {
 				return errors.New("only followers")
 			}
+			Anique, err := s.roomRepository.RedisGetAntiqueStreamDuration(roomID)
+			if err != nil {
+				return err
+			}
+			// Convertimos Anique (segundos) a un tiempo en el pasado
+			antiqueTime := time.Now().Add(-time.Duration(Anique) * time.Second)
+
+			// Si el usuario empezó a seguir después de la antigüedad requerida, retornar error
+			if userInfo.Following.Since.After(antiqueTime) {
+				return errors.New("el usuario no cumple con la antigüedad mínima requerida")
+			}
+
 		} else if modChat == "Subscriptions" {
 			err = s.validateSubscription(userInfo)
 			if err != nil {
