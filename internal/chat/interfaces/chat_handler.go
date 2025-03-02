@@ -616,6 +616,7 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 		if shouldNotify {
 			h.NotifyActivityFeed(req.StreamerChat.Hex()+"ActivityFeed", NameUser, req.ActionAgainst, req.Action)
 		}
+
 	}()
 
 	// Verificar que el usuario sea moderador
