@@ -123,6 +123,7 @@ type ModeratorAction struct {
 	ActionAgainst string             `json:"actionAgainst"`
 	TimeOut       int                `json:"timeOut"`
 	Room          primitive.ObjectID `json:"room"`
+	StreamerChat  primitive.ObjectID `json:"streamerChat"`
 }
 
 func (a *ModeratorAction) ModeratorActionValidate() error {

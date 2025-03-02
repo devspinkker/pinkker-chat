@@ -21,7 +21,7 @@ func Routes(app *fiber.App, redisClient *redis.Client, MongoClient *mongo.Client
 
 	Repository := infrastructure.NewRepository(redisClient, MongoClient)
 	chatService := application.NewChatService(Repository)
-	chatHandler := interfaces.NewChatHandler(chatService)
+	chatHandler := interfaces.NewChatHandler(chatService, redisClient)
 	app.Use("/ws", func(c *fiber.Ctx) error {
 		if websocket.IsWebSocketUpgrade(c) {
 			c.Locals("allowed", true)

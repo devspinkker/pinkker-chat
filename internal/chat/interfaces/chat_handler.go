@@ -4,21 +4,26 @@ import (
 	"PINKKER-CHAT/internal/chat/application"
 	"PINKKER-CHAT/internal/chat/domain"
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/websocket/v2"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type ChatHandler struct {
 	chatService *application.ChatService
+	redisClient *redis.Client
 }
 
-func NewChatHandler(chatService *application.ChatService) *ChatHandler {
+func NewChatHandler(chatService *application.ChatService, redisClient *redis.Client) *ChatHandler {
 	return &ChatHandler{
 		chatService: chatService,
+		redisClient: redisClient,
 	}
 }
 func (h *ChatHandler) GetMessagesForSecond(c *fiber.Ctx) error {
@@ -593,21 +598,28 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 	NameUser := c.Context().UserValue("nameUser").(string)
 	verified := c.Context().UserValue("verified").(bool)
 
-	// request validate
 	var req domain.ModeratorAction
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"data": "StatusBadRequest",
 		})
 	}
-	if errModeratorActionValidate := req.ModeratorActionValidate(); errModeratorActionValidate != nil {
+	if errValidate := req.ModeratorActionValidate(); errValidate != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"data": errModeratorActionValidate.Error(),
+			"data": errValidate.Error(),
 		})
 	}
-	//  moderador?
-	Moderator, errGetUserInfo := h.chatService.GetUserInfo(req.Room, NameUser, verified)
 
+	// Variable para decidir si se notifica
+	shouldNotify := false
+	defer func() {
+		if shouldNotify {
+			h.NotifyActivityFeed(req.StreamerChat.Hex()+"ActivityFeed", NameUser, req.ActionAgainst, req.Action)
+		}
+	}()
+
+	// Verificar que el usuario sea moderador
+	Moderator, errGetUserInfo := h.chatService.GetUserInfo(req.Room, NameUser, verified)
 	if errGetUserInfo != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"data": "StatusInternalServerError",
@@ -618,97 +630,92 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 			"data": "not a moderator",
 		})
 	}
-	// puede hacer acciones contra todos menos contra el streamer
+
+	// Verificar restricciones para acciones del moderador
 	err := h.chatService.ModeratorRestrictions(req.ActionAgainst, req.Room)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"data": "ModeratorRestrictions",
 		})
 	}
-	// Action  moderador
+
+	// Ejecutar la acción según el tipo solicitado
 	if req.Action == "moderator" {
-		errTimeOut := h.chatService.ModeratorActionModerator(req, verified)
-		if errTimeOut != nil {
+		if errTimeOut := h.chatService.ModeratorActionModerator(req, verified); errTimeOut != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"data": "StatusInternalServerError",
 			})
 		} else {
+			shouldNotify = true
 			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "TimeOut",
 			})
-
 		}
 	} else if req.Action == "rModerator" {
-		errTimeOut := h.chatService.ModeratorActionUnModerator(req, verified)
-		if errTimeOut != nil {
+		if errTimeOut := h.chatService.ModeratorActionUnModerator(req, verified); errTimeOut != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"data": "StatusInternalServerError",
 			})
 		} else {
+			shouldNotify = true
 			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "TimeOut",
 			})
-
 		}
 	} else if req.Action == "vip" {
-		errTimeOut := h.chatService.ModeratorActionVip(req, verified)
-		if errTimeOut != nil {
+		if errTimeOut := h.chatService.ModeratorActionVip(req, verified); errTimeOut != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"data": "StatusInternalServerError",
 			})
 		} else {
+			shouldNotify = true
 			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "TimeOut",
 			})
-
 		}
 	} else if req.Action == "rVip" {
-		errTimeOut := h.chatService.ModeratorActionunVip(req, verified)
-		if errTimeOut != nil {
+		if errTimeOut := h.chatService.ModeratorActionunVip(req, verified); errTimeOut != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"data": "StatusInternalServerError",
 			})
 		} else {
+			shouldNotify = true
 			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "TimeOut",
 			})
-
 		}
 	} else if req.Action == "timeOut" {
-		errTimeOut := h.chatService.ModeratorActionTimeOut(req, verified)
-		if errTimeOut != nil {
+		if errTimeOut := h.chatService.ModeratorActionTimeOut(req, verified); errTimeOut != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"data": "StatusInternalServerError",
 			})
 		} else {
+			shouldNotify = true
 			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "TimeOut",
 			})
-
 		}
 	} else if req.Action == "baneado" {
-		errBaneado := h.chatService.ModeratorActionBaneado(req, verified)
-		if errBaneado != nil {
+		if errBaneado := h.chatService.ModeratorActionBaneado(req, verified); errBaneado != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"data": "StatusInternalServerError",
 			})
 		} else {
+			shouldNotify = true
 			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "baneado",
 			})
-
 		}
 	} else if req.Action == "removeban" {
-		errRemoveban := h.chatService.ModeratorActionRemoveban(req, verified)
-		if errRemoveban != nil {
+		if errRemoveban := h.chatService.ModeratorActionRemoveban(req, verified); errRemoveban != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"data": "StatusInternalServerError",
 			})
 		} else {
+			shouldNotify = true
 			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"data": "removeban",
 			})
-
 		}
 	} else {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -716,6 +723,7 @@ func (h *ChatHandler) ActionModerator(c *fiber.Ctx) error {
 		})
 	}
 }
+
 func (h *ChatHandler) ActionIdentidadUser(c *fiber.Ctx) error {
 	NameUser := c.Context().UserValue("nameUser").(string)
 	verified := c.Context().UserValue("verified").(bool)
@@ -813,4 +821,23 @@ func (h *ChatHandler) GetInfoUserInRoom(c *fiber.Ctx) error {
 		"message": "ok",
 		"data":    InfoUser,
 	})
+}
+func (h *ChatHandler) NotifyActivityFeed(room, user, ActionAgainst, action string) error {
+
+	notification := map[string]interface{}{
+		"type":          "moderator",
+		"nameuser":      user,
+		"actionAgainst": ActionAgainst,
+		"action":        action,
+		"timestamp":     time.Now(),
+	}
+
+	notificationJSON, err := json.Marshal(notification)
+	if err != nil {
+		return err
+	}
+
+	// Publicar el mensaje en el canal de Redis asociado a la sala
+	// En este ejemplo, usamos el nombre de la sala como canal.
+	return h.redisClient.Publish(context.Background(), room, notificationJSON).Err()
 }
